@@ -54,7 +54,7 @@ jobs:
           RSYNC_RSH="ssh $SSH_OPTS"
 
           # 소스만 전송 — filter "protect"로 서버 전용 항목이 --delete로 지워지지 않게 보호
-          rsync -rltzv --delete \
+          rsync -rlzv --delete --omit-dir-times \
             -e "$RSYNC_RSH" \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --filter 'protect .env' \
