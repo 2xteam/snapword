@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AppIcon } from "@/components/AppIcon";
 import { loadSession, saveSession, type SessionUser } from "@/lib/session";
 
 export default function StartPage() {
@@ -65,7 +66,17 @@ export default function StartPage() {
           border: "1px solid var(--border)",
         }}
       >
-        <h1 style={{ margin: "0 0 0.25rem", fontSize: "1.75rem", color: "var(--text-primary)" }}>
+        <h1
+          style={{
+            margin: "0 0 0.25rem",
+            fontSize: "1.75rem",
+            color: "var(--text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <AppIcon size={36} priority className="app-brand-icon" />
           SnapWord
         </h1>
         <p style={{ margin: "0 0 1.5rem", color: "var(--text-secondary)", fontSize: 14 }}>

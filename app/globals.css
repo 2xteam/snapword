@@ -270,11 +270,24 @@ a:hover {
 }
 
 .topnav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 1.15rem;
   font-weight: 800;
   color: var(--text-primary);
   text-decoration: none;
   letter-spacing: -0.02em;
+}
+
+.topnav-logo-icon {
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.app-brand-icon {
+  flex-shrink: 0;
+  border-radius: 8px;
 }
 
 .topnav-links {

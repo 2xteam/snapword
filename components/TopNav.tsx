@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { AppIcon } from "@/components/AppIcon";
 import { clearSession } from "@/lib/session";
 
 const nav = [
@@ -33,6 +34,7 @@ export function TopNav() {
         {/* Top bar row — always visible */}
         <div className="topnav-bar">
           <Link href="/home" className="topnav-logo">
+            <AppIcon size={26} alt="" priority className="topnav-logo-icon" />
             SnapWord
           </Link>
 
