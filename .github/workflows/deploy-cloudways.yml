@@ -58,6 +58,7 @@ jobs:
             -e "$RSYNC_RSH" \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --filter 'protect .env' \
+            --filter 'protect .htaccess' \
             --filter 'protect node_modules/' \
             --filter 'protect .next/' \
             --exclude '.git' \
