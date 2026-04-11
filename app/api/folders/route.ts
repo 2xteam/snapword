@@ -25,7 +25,7 @@ export async function GET(req: Request) {
         : { $or: [{ parentFolderId: null }, { parentFolderId: { $exists: false } }] };
 
     await connectDB();
-    const items = await Folder.find({ phone, ...parentFilter })
+    const items = await Folder.find({ phone, deletedAt: null, ...parentFilter })
       .sort({ createdAt: -1 })
       .limit(200)
       .lean()

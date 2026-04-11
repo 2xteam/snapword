@@ -12,7 +12,11 @@ type FolderRow = {
   parentFolderId?: string | null;
 };
 
-type Dialog = { type: "create" } | { type: "rename"; id: string; current: string } | null;
+type Dialog =
+  | { type: "create" }
+  | { type: "rename"; id: string; current: string }
+  | { type: "confirmDelete"; id: string; name: string }
+  | null;
 
 export default function HomeFoldersPage() {
   const router = useRouter();
@@ -48,16 +52,22 @@ export default function HomeFoldersPage() {
   const closeDialog = () => { setDialog(null); setDialogName(""); };
 
   const submitDialog = async () => {
-    if (!session || !dialogName.trim()) return;
+    if (!session) return;
     setMsg(null);
     if (dialog?.type === "create") {
+      if (!dialogName.trim()) return;
       const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: null }) });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "폴더 생성 실패"); return; }
     } else if (dialog?.type === "rename") {
+      if (!dialogName.trim()) return;
       const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "이름 수정 실패"); return; }
+    } else if (dialog?.type === "confirmDelete") {
+      const res = await fetch(`/api/folders/${dialog.id}?phone=${encodeURIComponent(session.phone)}`, { method: "DELETE" });
+      const json = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "삭제 실패"); return; }
     }
     closeDialog();
     await refresh(session);
@@ -95,10 +105,18 @@ export default function HomeFoldersPage() {
               <button
                 type="button"
                 onClick={() => openRename(f._id, f.name)}
-                style={btnRename}
+                style={btnAction}
                 title="이름 수정"
               >
                 <PenIcon />
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDialogName(""); setDialog({ type: "confirmDelete", id: f._id, name: f.name }); }}
+                style={btnAction}
+                title="삭제"
+              >
+                <TrashIcon />
               </button>
             </li>
           ))
@@ -109,23 +127,41 @@ export default function HomeFoldersPage() {
         <>
           <div style={overlay} onClick={closeDialog} />
           <div style={dialogBox}>
-            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
-              {dialog.type === "create" ? "새 폴더 만들기" : "폴더 이름 수정"}
-            </h3>
-            <input
-              value={dialogName}
-              onChange={(e) => setDialogName(e.target.value)}
-              placeholder="폴더 이름"
-              autoFocus
-              style={{ width: "100%", marginBottom: "1rem" }}
-              onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
-            />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
-              <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnPrimary}>
-                {dialog.type === "create" ? "생성" : "저장"}
-              </button>
-            </div>
+            {dialog.type === "confirmDelete" ? (
+              <>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
+                  폴더 삭제
+                </h3>
+                <p style={{ margin: "0 0 1rem", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  <strong>&ldquo;{dialog.name}&rdquo;</strong> 폴더를 삭제하시겠습니까?<br />
+                  하위 폴더와 단어장도 함께 휴지통으로 이동됩니다.
+                </p>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
+                  <button type="button" onClick={() => void submitDialog()} style={btnDanger}>삭제</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
+                  {dialog.type === "create" ? "새 폴더 만들기" : "폴더 이름 수정"}
+                </h3>
+                <input
+                  value={dialogName}
+                  onChange={(e) => setDialogName(e.target.value)}
+                  placeholder="폴더 이름"
+                  autoFocus
+                  style={{ width: "100%", marginBottom: "1rem" }}
+                  onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
+                />
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
+                  <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnPrimary}>
+                    {dialog.type === "create" ? "생성" : "저장"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
@@ -158,6 +194,14 @@ function PenIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+      <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const btnSmall: CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -178,7 +222,7 @@ const explorerRow: CSSProperties = {
   gap: 10,
   flex: 1,
   padding: "0.6rem 0.75rem",
-  borderRadius: "8px 0 0 8px",
+  borderRadius: 8,
   textDecoration: "none",
   color: "var(--text-primary)",
   fontSize: 14,
@@ -187,12 +231,11 @@ const explorerRow: CSSProperties = {
   background: "transparent",
 };
 
-const btnRename: CSSProperties = {
+const btnAction: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0.6rem 0.5rem",
-  borderRadius: "0 8px 8px 0",
+  padding: "0.6rem 0.4rem",
   border: "none",
   background: "transparent",
   color: "var(--text-muted)",
@@ -204,6 +247,17 @@ const btnPrimary: CSSProperties = {
   borderRadius: 10,
   border: "none",
   background: "var(--accent)",
+  color: "#fff",
+  fontWeight: 600,
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const btnDanger: CSSProperties = {
+  padding: "0.55rem 1rem",
+  borderRadius: 10,
+  border: "none",
+  background: "#dc2626",
   color: "#fff",
   fontWeight: 600,
   cursor: "pointer",

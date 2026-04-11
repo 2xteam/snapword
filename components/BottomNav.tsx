@@ -7,6 +7,7 @@ const nav = [
   { href: "/home", label: "홈", icon: HomeIcon },
   { href: "/print", label: "Print", icon: PrintIcon },
   { href: "/chat", label: "Chat", icon: ChatIcon },
+  { href: "/trash", label: "Trash", icon: TrashIcon },
   { href: "/my", label: "My", icon: UserIcon },
 ];
 
@@ -43,6 +44,20 @@ function ChatIcon({ active }: { active: boolean }) {
         d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H6a2 2 0 0 1-2-2V6Z"
         stroke={active ? "#3b82f6" : "#8b8b9e"}
         strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
+        stroke={active ? "#3b82f6" : "#8b8b9e"}
+        strokeWidth="1.6"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>

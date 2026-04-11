@@ -14,6 +14,8 @@ type Dialog =
   | { type: "createDeck" }
   | { type: "renameFolder"; id: string; current: string }
   | { type: "renameDeck"; id: string; current: string }
+  | { type: "deleteFolder"; id: string; name: string }
+  | { type: "deleteDeck"; id: string; name: string }
   | null;
 
 export default function FolderInsidePage() {
@@ -71,28 +73,42 @@ export default function FolderInsidePage() {
   const closeDialog = () => { setDialog(null); setDialogName(""); };
 
   const submitDialog = async () => {
-    if (!session || !dialogName.trim() || !dialog) return;
+    if (!session || !dialog) return;
     setMsg(null);
-    if (dialog.type === "createFolder") {
-      const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
+
+    if (dialog.type === "deleteFolder") {
+      const res = await fetch(`/api/folders/${dialog.id}?phone=${encodeURIComponent(session.phone)}`, { method: "DELETE" });
       const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
-    } else if (dialog.type === "createDeck") {
-      const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, phone: session.phone, name: dialogName.trim(), description: "", createdBy: session.id }) });
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "삭제 실패"); return; }
+    } else if (dialog.type === "deleteDeck") {
+      const res = await fetch(`/api/vocabularies/${dialog.id}?phone=${encodeURIComponent(session.phone)}`, { method: "DELETE" });
       const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
-    } else if (dialog.type === "renameFolder") {
-      const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
-      const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
-    } else if (dialog.type === "renameDeck") {
-      const res = await fetch(`/api/vocabularies/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
-      const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "삭제 실패"); return; }
+    } else {
+      if (!dialogName.trim()) return;
+      if (dialog.type === "createFolder") {
+        const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
+        const json = (await res.json()) as { ok: boolean; error?: string };
+        if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
+      } else if (dialog.type === "createDeck") {
+        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, phone: session.phone, name: dialogName.trim(), description: "", createdBy: session.id }) });
+        const json = (await res.json()) as { ok: boolean; error?: string };
+        if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
+      } else if (dialog.type === "renameFolder") {
+        const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
+        const json = (await res.json()) as { ok: boolean; error?: string };
+        if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
+      } else if (dialog.type === "renameDeck") {
+        const res = await fetch(`/api/vocabularies/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
+        const json = (await res.json()) as { ok: boolean; error?: string };
+        if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
+      }
     }
     closeDialog();
     await refresh(session);
   };
+
+  const isDeleteDialog = dialog?.type === "deleteFolder" || dialog?.type === "deleteDeck";
 
   const dialogTitle = (() => {
     if (!dialog) return "";
@@ -101,6 +117,8 @@ export default function FolderInsidePage() {
       case "createDeck": return "새 단어장";
       case "renameFolder": return "폴더 이름 수정";
       case "renameDeck": return "단어장 이름 수정";
+      case "deleteFolder": return "폴더 삭제";
+      case "deleteDeck": return "단어장 삭제";
     }
   })();
 
@@ -163,10 +181,24 @@ export default function FolderInsidePage() {
                       : { type: "renameDeck", id: it.id, current: it.name },
                   )
                 }
-                style={btnRename}
+                style={btnAction}
                 title="이름 수정"
               >
                 <PenIcon />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  openDialog(
+                    it.kind === "folder"
+                      ? { type: "deleteFolder", id: it.id, name: it.name }
+                      : { type: "deleteDeck", id: it.id, name: it.name },
+                  )
+                }
+                style={btnAction}
+                title="삭제"
+              >
+                <TrashIcon />
               </button>
             </li>
           ))
@@ -180,20 +212,37 @@ export default function FolderInsidePage() {
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
               {dialogTitle}
             </h3>
-            <input
-              value={dialogName}
-              onChange={(e) => setDialogName(e.target.value)}
-              placeholder={dialogPlaceholder}
-              autoFocus
-              style={{ width: "100%", marginBottom: "1rem" }}
-              onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
-            />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
-              <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnAccent}>
-                {dialogSubmitLabel}
-              </button>
-            </div>
+            {isDeleteDialog ? (
+              <>
+                <p style={{ margin: "0 0 1rem", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  <strong>&ldquo;{(dialog as { name: string }).name}&rdquo;</strong>
+                  {dialog.type === "deleteFolder"
+                    ? "을(를) 삭제하시겠습니까? 하위 폴더와 단어장도 함께 휴지통으로 이동됩니다."
+                    : "을(를) 삭제하시겠습니까? 휴지통으로 이동됩니다."}
+                </p>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
+                  <button type="button" onClick={() => void submitDialog()} style={btnDanger}>삭제</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  value={dialogName}
+                  onChange={(e) => setDialogName(e.target.value)}
+                  placeholder={dialogPlaceholder}
+                  autoFocus
+                  style={{ width: "100%", marginBottom: "1rem" }}
+                  onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
+                />
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
+                  <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnAccent}>
+                    {dialogSubmitLabel}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
@@ -244,6 +293,14 @@ function PenIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+      <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const backBtn: CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -277,7 +334,7 @@ const explorerRow: CSSProperties = {
   gap: 10,
   flex: 1,
   padding: "0.6rem 0.75rem",
-  borderRadius: "8px 0 0 8px",
+  borderRadius: 8,
   textDecoration: "none",
   color: "var(--text-primary)",
   fontSize: 14,
@@ -286,12 +343,11 @@ const explorerRow: CSSProperties = {
   background: "transparent",
 };
 
-const btnRename: CSSProperties = {
+const btnAction: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0.6rem 0.5rem",
-  borderRadius: "0 8px 8px 0",
+  padding: "0.6rem 0.4rem",
   border: "none",
   background: "transparent",
   color: "var(--text-muted)",
@@ -303,6 +359,17 @@ const btnAccent: CSSProperties = {
   borderRadius: 10,
   border: "none",
   background: "var(--accent)",
+  color: "#fff",
+  fontWeight: 600,
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const btnDanger: CSSProperties = {
+  padding: "0.55rem 1rem",
+  borderRadius: 10,
+  border: "none",
+  background: "#dc2626",
   color: "#fff",
   fontWeight: 600,
   cursor: "pointer",

@@ -75,3 +75,37 @@ export async function GET(
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: Request,
+  ctx: { params: Promise<{ vocabId: string }> },
+) {
+  try {
+    const { vocabId } = await ctx.params;
+    const url = new URL(req.url);
+    const phone = normalizePhone(url.searchParams.get("phone") ?? "");
+
+    if (!mongoose.isValidObjectId(vocabId) || !phone) {
+      return NextResponse.json(
+        { ok: false, error: "vocabId, phone이 필요합니다." },
+        { status: 400 },
+      );
+    }
+
+    await connectDB();
+    const result = await VocabularyDeck.findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(vocabId), phone, deletedAt: null },
+      { $set: { deletedAt: new Date() } },
+    ).exec();
+
+    if (!result) {
+      return NextResponse.json({ ok: false, error: "단어장을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}

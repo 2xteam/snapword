@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     await connectDB();
 
     if (phone && !folderId) {
-      const items = await VocabularyDeck.find({ phone })
+      const items = await VocabularyDeck.find({ phone, deletedAt: null })
         .sort({ createdAt: -1 })
         .limit(500)
         .lean()
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const items = await VocabularyDeck.find({ folderId })
+    const items = await VocabularyDeck.find({ folderId, deletedAt: null })
       .sort({ createdAt: -1 })
       .limit(200)
       .lean()

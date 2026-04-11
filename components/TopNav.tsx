@@ -10,6 +10,7 @@ const nav = [
   { href: "/home", label: "홈" },
   { href: "/print", label: "Print" },
   { href: "/chat", label: "Chat" },
+  { href: "/trash", label: "Trash" },
   { href: "/my", label: "My" },
 ];
 
