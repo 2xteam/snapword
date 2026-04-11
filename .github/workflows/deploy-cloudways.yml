@@ -8,8 +8,7 @@
 # 선택:
 #   DEPLOY_PORT     — SSH 포트 (미설정 시 22)
 #
-# 서버에 한 번만: Node/npm, PM2 전역 설치, 이 저장소용 공개 키를 Cloudways SSH Keys에 등록,
-# 프로덕션 환경 변수(.env 등)는 Cloudways/서버에만 두세요.
+# 소스만 서버로 전송 → 서버에서 npm ci + build + PM2 reload
 
 name: Deploy to Cloudways
 
@@ -28,17 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install and build
-        run: |
-          npm ci
-          npm run build
-
-      - name: Rsync to server and reload PM2
+      - name: Deploy source and build on server
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -54,19 +43,39 @@ jobs:
               exit 1
             fi
           done
+
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           PORT="${SSH_PORT:-22}"
           ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-          rsync -avz --delete \
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          RSYNC_RSH="ssh $SSH_OPTS"
+
+          # 소스만 전송 (node_modules·.next·빌드산출물 제외)
+          rsync -azv --delete \
             -e "$RSYNC_RSH" \
             --exclude '.git' \
             --exclude '.github' \
             --exclude '.cursor' \
             --exclude '.env' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
             ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
-          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-            "${SSH_USER}@${SSH_HOST}" \
-            "set -e; cd \"${DEPLOY_PATH}\" && if pm2 describe snapword > /dev/null 2>&1; then pm2 reload ecosystem.config.cjs --update-env; else pm2 start ecosystem.config.cjs; fi && pm2 save"
+
+          # 서버에서 install → build → PM2 reload
+          ssh $SSH_OPTS "${SSH_USER}@${SSH_HOST}" bash -lc "
+            set -e
+            cd \"${DEPLOY_PATH}\"
+            export NVM_DIR=\"\$HOME/.nvm\"
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+            npm ci --production=false
+            npm run build
+            if pm2 describe snapword > /dev/null 2>&1; then
+              pm2 reload ecosystem.config.cjs --update-env
+            else
+              pm2 start ecosystem.config.cjs
+            fi
+            pm2 save
+          "
