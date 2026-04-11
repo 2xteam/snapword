@@ -168,9 +168,10 @@ export default function PrintPage() {
         <div style={{ fontWeight: 700, marginBottom: 8 }}>단어장 선택</div>
         <div style={{ display: "grid", gap: 6, maxHeight: 200, overflow: "auto" }}>
           {decks.map((d) => (
-            <label key={d._id} style={{ display: "flex", gap: 8, fontSize: 14, color: "var(--text-primary)" }}>
+            <label key={d._id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--text-primary)", cursor: "pointer" }}>
               <input
                 type="checkbox"
+                className="custom-checkbox"
                 checked={Boolean(sel[d._id])}
                 onChange={(e) => setSel((s) => ({ ...s, [d._id]: e.target.checked }))}
               />
@@ -216,8 +217,10 @@ export default function PrintPage() {
             >
               <input
                 type="checkbox"
+                className="custom-checkbox"
                 checked={Boolean(pick[w._id])}
                 onChange={(e) => setPick((p) => ({ ...p, [w._id]: e.target.checked }))}
+                style={{ marginTop: 2 }}
               />
               <span>
                 <strong>{w.word}</strong>
