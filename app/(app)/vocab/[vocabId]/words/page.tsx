@@ -10,7 +10,7 @@ import { loadSession, type SessionUser } from "@/lib/session";
 
 type WordRow = VocabularyPayload & { _id?: string };
 
-type DialogMode = "manual" | "vision" | null;
+type DialogMode = "manual" | "vision" | "confirmDeleteWord" | null;
 
 export default function VocabWordsEditPage() {
   const { vocabId } = useParams<{ vocabId: string }>();
@@ -24,6 +24,7 @@ export default function VocabWordsEditPage() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [dialogRow, setDialogRow] = useState<WordRow>(emptyVocabularyPayload());
   const [visionRows, setVisionRows] = useState<WordRow[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   useEffect(() => {
     const s = loadSession();
@@ -61,15 +62,42 @@ export default function VocabWordsEditPage() {
 
   const closeDialog = () => { setDialogMode(null); setVisionRows([]); };
 
-  const submitManual = () => {
-    if (!dialogRow.word.trim() || !dialogRow.meaning.trim()) return;
-    setRows((prev) => [{ ...dialogRow }, ...prev]);
-    closeDialog();
+  const submitManual = async () => {
+    if (!session || !vocabId || !dialogRow.word.trim() || !dialogRow.meaning.trim()) return;
+    setBusy("save");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/words", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vocabId, phone: session.phone, word: dialogRow.word.trim(), meaning: dialogRow.meaning, example: dialogRow.example, synonyms: dialogRow.synonyms, antonyms: dialogRow.antonyms }),
+      });
+      const json = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "저장 실패"); return; }
+      closeDialog();
+      await load();
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const submitVision = () => {
-    setRows((prev) => [...visionRows, ...prev]);
-    closeDialog();
+  const submitVision = async () => {
+    if (!session || !vocabId || visionRows.length === 0) return;
+    setBusy("save");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/words", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vocabId, phone: session.phone, words: visionRows.map(({ _id: _, ...w }) => w) }),
+      });
+      const json = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "저장 실패"); return; }
+      closeDialog();
+      await load();
+    } finally {
+      setBusy(null);
+    }
   };
 
   const updateVisionRow = (i: number, patch: Partial<WordRow>) => {
@@ -106,49 +134,42 @@ export default function VocabWordsEditPage() {
     }
   };
 
-  const removeRow = async (i: number) => {
-    const row = rows[i];
-    if (!session) return;
+  const askRemoveRow = (i: number) => {
+    setDeleteTarget(i);
+    setDialogMode("confirmDeleteWord");
+  };
+
+  const confirmRemoveRow = async () => {
+    if (deleteTarget === null || !session) return;
+    const row = rows[deleteTarget];
     if (row._id) {
       const res = await fetch(
         `/api/words/${row._id}?phone=${encodeURIComponent(session.phone)}`,
         { method: "DELETE" },
       );
       const json = (await res.json()) as { ok: boolean };
-      if (!res.ok || !json.ok) { setMsg("삭제 실패"); return; }
+      if (!res.ok || !json.ok) { setMsg("삭제 실패"); setDialogMode(null); setDeleteTarget(null); return; }
     }
-    setRows((prev) => prev.filter((_, j) => j !== i));
+    setRows((prev) => prev.filter((_, j) => j !== deleteTarget));
+    setDialogMode(null);
+    setDeleteTarget(null);
   };
 
-  const saveAll = async () => {
-    if (!session || !vocabId) return;
-    const invalid = rows.find((r) => !r.word.trim() || !r.meaning.trim());
-    if (invalid) { setMsg("단어와 설명은 모두 필수입니다."); return; }
-    setBusy("save");
+  const saveRow = async (i: number) => {
+    const r = rows[i];
+    if (!session || !r._id) return;
+    if (!r.word.trim() || !r.meaning.trim()) { setMsg("단어와 설명은 필수입니다."); return; }
+    setBusy(`save-${i}`);
     setMsg(null);
     try {
-      const newOnes = rows.filter((r) => !r._id);
-      const existing = rows.filter((r) => r._id);
-      if (newOnes.length > 0) {
-        const res = await fetch("/api/words", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ vocabId, phone: session.phone, words: newOnes.map(({ _id: _, ...w }) => w) }),
-        });
-        const json = (await res.json()) as { ok: boolean; error?: string };
-        if (!res.ok || !json.ok) { setMsg(json.error ?? "일괄 저장 실패"); return; }
-      }
-      for (const r of existing) {
-        const res = await fetch(`/api/words/${r._id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ phone: session.phone, word: r.word, meaning: r.meaning, example: r.example, synonyms: r.synonyms, antonyms: r.antonyms }),
-        });
-        const json = (await res.json()) as { ok: boolean; error?: string };
-        if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
-      }
+      const res = await fetch(`/api/words/${r._id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone: session.phone, word: r.word, meaning: r.meaning, example: r.example, synonyms: r.synonyms, antonyms: r.antonyms }),
+      });
+      const json = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
       setMsg("저장되었습니다.");
-      await load();
     } finally {
       setBusy(null);
     }
@@ -177,7 +198,7 @@ export default function VocabWordsEditPage() {
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={openAddDialog} style={btn}>+ 수동 추가</button>
+        <button type="button" onClick={openAddDialog} style={btn}>추가</button>
         <label style={{ ...btn, cursor: "pointer", display: "inline-block" }}>
           사진으로 추가
           <input type="file" accept="image/*" hidden onChange={(e) => void runVision(e.target.files?.[0] ?? null)} />
@@ -199,20 +220,19 @@ export default function VocabWordsEditPage() {
               <Field label="예문" value={r.example} onChange={(v) => updateRow(i, { example: v })} multiline />
               <Field label="동의어 (쉼표 구분)" value={r.synonyms.join(", ")} onChange={(v) => updateRow(i, { synonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
               <Field label="반의어 (쉼표 구분)" value={r.antonyms.join(", ")} onChange={(v) => updateRow(i, { antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
-              <button type="button" onClick={() => void removeRow(i)} style={btnDanger}>이 항목 삭제</button>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                {r._id && (
+                  <button type="button" onClick={() => void saveRow(i)} disabled={busy !== null} style={btnSave}>
+                    {busy === `save-${i}` ? "저장 중…" : "저장"}
+                  </button>
+                )}
+                <button type="button" onClick={() => askRemoveRow(i)} style={btnDanger}>삭제</button>
+              </div>
             </div>
           ))
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => void saveAll()}
-        disabled={busy !== null || rows.length === 0}
-        style={{ width: "100%", padding: "0.9rem", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
-      >
-        {busy === "save" ? "저장 중…" : "저장"}
-      </button>
 
       {/* Manual add dialog */}
       {dialogMode === "manual" && (
@@ -227,7 +247,9 @@ export default function VocabWordsEditPage() {
             <Field label="반의어 (쉼표 구분)" value={dialogRow.antonyms.join(", ")} onChange={(v) => setDialogRow((d) => ({ ...d, antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) }))} />
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: "0.75rem" }}>
               <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
-              <button type="button" onClick={submitManual} disabled={!dialogRow.word.trim() || !dialogRow.meaning.trim()} style={btnAccent}>추가</button>
+              <button type="button" onClick={() => void submitManual()} disabled={busy !== null || !dialogRow.word.trim() || !dialogRow.meaning.trim()} style={btnAccent}>
+                {busy === "save" ? "저장 중…" : "저장"}
+              </button>
             </div>
           </div>
         </>
@@ -256,15 +278,31 @@ export default function VocabWordsEditPage() {
             {/* Floating save button */}
             <button
               type="button"
-              onClick={submitVision}
-              disabled={visionRows.length === 0}
+              onClick={() => void submitVision()}
+              disabled={busy !== null || visionRows.length === 0}
               style={fabStyle}
-              title="목록에 추가"
+              title="저장"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M5 13l4 4L19 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
+          </div>
+        </>
+      )}
+
+      {dialogMode === "confirmDeleteWord" && deleteTarget !== null && (
+        <>
+          <div style={overlayStyle} onClick={() => { setDialogMode(null); setDeleteTarget(null); }} />
+          <div style={dialogBoxStyle}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>단어 삭제</h3>
+            <p style={{ margin: "0 0 1rem", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              <strong>&ldquo;{rows[deleteTarget]?.word}&rdquo;</strong>을(를) 삭제하시겠습니까?
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => { setDialogMode(null); setDeleteTarget(null); }} style={btnCancel}>취소</button>
+              <button type="button" onClick={() => void confirmRemoveRow()} style={btnDangerAction}>삭제</button>
+            </div>
           </div>
         </>
       )}
@@ -298,9 +336,19 @@ const btn: CSSProperties = {
   color: "var(--text-primary)", fontSize: 13, cursor: "pointer",
 };
 
+const btnSave: CSSProperties = {
+  ...btn,
+  borderColor: "rgba(59, 130, 246, 0.3)", color: "var(--accent)", background: "var(--accent-subtle)",
+};
+
 const btnDanger: CSSProperties = {
-  ...btn, marginTop: 8,
+  ...btn,
   borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", background: "var(--danger-subtle)",
+};
+
+const btnDangerAction: CSSProperties = {
+  padding: "0.55rem 1rem", borderRadius: 10, border: "none",
+  background: "#dc2626", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13,
 };
 
 const btnAccent: CSSProperties = {
