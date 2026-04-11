@@ -1,12 +1,13 @@
 /**
- * PM2 예시 (Cloudways 등)
- *   npm.cmd run build
+ * PM2 (Cloudways 등)
+ *   npm run build
  *   pm2 start ecosystem.config.cjs
+ * GitHub Actions 배포 후: pm2 reload ecosystem.config.cjs --update-env
  */
 module.exports = {
   apps: [
     {
-      name: "snapword-next",
+      name: "snapword",
       cwd: __dirname,
       script: "npm",
       args: "run start",

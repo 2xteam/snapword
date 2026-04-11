@@ -1,0 +1,71 @@
+# Cloudways 자동 배포 (GitHub Actions)
+#
+# 필요한 Repository Secrets:
+#   DEPLOY_HOST     — SSH 호스트 (예: 165.22.xxx.xxx)
+#   DEPLOY_USER     — SSH 사용자 (예: master_xxxxx)
+#   DEPLOY_SSH_KEY  — 배포용 SSH 개인 키 전체 (PEM, 줄바꿈 포함)
+#   DEPLOY_PATH     — 앱 루트 절대 경로 (예: /home/master/applications/xxxxx/public_html)
+# 선택:
+#   DEPLOY_PORT     — SSH 포트 (미설정 시 22)
+#
+# 서버에 한 번만: Node/npm, PM2 전역 설치, 이 저장소용 공개 키를 Cloudways SSH Keys에 등록,
+# 프로덕션 환경 변수(.env 등)는 Cloudways/서버에만 두세요.
+
+name: Deploy to Cloudways
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudways
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Rsync to server and reload PM2
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -e
+          for v in SSH_KEY SSH_HOST SSH_USER DEPLOY_PATH; do
+            eval "val=\$$v"
+            if [ -z "$val" ]; then
+              echo "Missing secret: $v"
+              exit 1
+            fi
+          done
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          rsync -avz --delete \
+            -e "$RSYNC_RSH" \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.cursor' \
+            ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" \
+            "set -e; cd \"${DEPLOY_PATH}\" && if pm2 describe snapword > /dev/null 2>&1; then pm2 reload ecosystem.config.cjs --update-env; else pm2 start ecosystem.config.cjs; fi && pm2 save"
