@@ -1,0 +1,94 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { clearSession } from "@/lib/session";
+
+const nav = [
+  { href: "/home", label: "홈" },
+  { href: "/print", label: "Print" },
+  { href: "/chat", label: "Chat" },
+  { href: "/my", label: "My" },
+];
+
+export function TopNav() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  const logout = () => {
+    clearSession();
+    router.replace("/");
+  };
+
+  return (
+    <>
+      {/* Click-away backdrop */}
+      {open && (
+        <div className="topnav-backdrop" onClick={() => setOpen(false)} />
+      )}
+
+      <nav className={`topnav ${open ? "topnav--open" : ""}`}>
+        {/* Top bar row — always visible */}
+        <div className="topnav-bar">
+          <Link href="/home" className="topnav-logo">
+            SnapWord
+          </Link>
+
+          {/* Desktop links */}
+          <div className="topnav-links">
+            {nav.map(({ href, label }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link key={href} href={href} className="topnav-link" data-active={active}>
+                  {label}
+                </Link>
+              );
+            })}
+            <button type="button" onClick={logout} className="topnav-logout">
+              로그아웃
+            </button>
+          </div>
+
+          {/* Mobile hamburger / X */}
+          <button
+            type="button"
+            className={`topnav-hamburger ${open ? "topnav-hamburger--open" : ""}`}
+            onClick={() => setOpen((o) => !o)}
+            aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+          >
+            <span className="topnav-hamburger-line topnav-hamburger-line--1" />
+            <span className="topnav-hamburger-line topnav-hamburger-line--2" />
+            <span className="topnav-hamburger-line topnav-hamburger-line--3" />
+          </button>
+        </div>
+
+        {/* Mobile expandable menu */}
+        <div className="topnav-menu">
+          {nav.map(({ href, label }) => {
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="topnav-menu-link"
+                data-active={active}
+                onClick={() => setOpen(false)}
+              >
+                {label}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => { setOpen(false); logout(); }}
+            className="topnav-logout topnav-menu-logout"
+          >
+            로그아웃
+          </button>
+        </div>
+      </nav>
+    </>
+  );
+}
