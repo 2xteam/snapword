@@ -173,74 +173,13 @@ export default function ChatPage() {
     ? "새 대화"
     : threads.find((t) => t._id === active)?.title ?? "대화";
 
+  const SIDEBAR_W = 260;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - var(--nav-height) - var(--nav-top) - 3rem)" }}>
-      {/* Sidebar overlay */}
-      {sidebarOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.5)" }} onClick={() => setSidebarOpen(false)} />
-      )}
-
-      <aside
-        style={{
-          position: "fixed",
-          top: "calc(var(--nav-height) + var(--nav-top))",
-          left: 0,
-          bottom: 0,
-          width: 280,
-          zIndex: 95,
-          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.25s ease",
-          background: "var(--bg-card)",
-          borderRight: "1px solid var(--border)",
-          padding: "0.75rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>대화 이력</span>
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--text-secondary)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-        <button type="button" onClick={startNewDraft} style={btnNewChat}>
-          + 새 채팅
-        </button>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, overflowY: "auto" }}>
-          {threads.map((t) => (
-            <button
-              key={t._id}
-              type="button"
-              onClick={() => void openThread(t._id, session)}
-              style={{
-                ...btnThread,
-                border: active === t._id ? "2px solid var(--accent)" : "1px solid var(--border)",
-                background: active === t._id ? "var(--accent-subtle)" : "var(--bg-elevated)",
-                color: active === t._id ? "var(--text-primary)" : "var(--text-secondary)",
-                fontWeight: active === t._id ? 600 : 500,
-                height: 38,
-                flexShrink: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {t.title}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      {/* Main chat */}
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - var(--nav-height) - var(--nav-top) - 3rem)", minHeight: 0 }}>
       <section
         style={{
+          position: "relative",
           border: "1px solid var(--border)",
           borderRadius: 14,
           display: "flex",
@@ -251,137 +190,263 @@ export default function ChatPage() {
           overflow: "hidden",
         }}
       >
-        {/* Sticky header */}
-        <div
-          style={{
-            padding: "0.6rem 0.75rem",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            style={{
-              background: "none",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "0.3rem 0.5rem",
-              cursor: "pointer",
-              color: "var(--text-secondary)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 12,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-          <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {activeTitle}
-          </span>
-          <button
-            type="button"
-            onClick={startNewDraft}
-            style={{
-              background: "none",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "0.3rem 0.5rem",
-              cursor: "pointer",
-              color: "var(--text-secondary)",
-              fontSize: 12,
-              flexShrink: 0,
-            }}
-          >
-            + 새 채팅
-          </button>
-        </div>
-
-        {/* Scrollable messages */}
+        {/* 메인 채팅: 항상 section 전체 너비 (이력 패널이 레이아웃을 밀지 않음) */}
         <div
           style={{
             flex: 1,
-            overflowY: "auto",
-            padding: "0.75rem",
+            minWidth: 0,
+            minHeight: 0,
             display: "flex",
             flexDirection: "column",
-            gap: 8,
+            overflow: "hidden",
           }}
         >
-          {messages.length === 0 && active === DRAFT_ID ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ color: "var(--text-muted)", fontSize: 14 }}>메시지를 입력하여 대화를 시작하세요.</p>
-            </div>
-          ) : (
-            messages.map((m) => {
-              const isPendingAi = m._id.startsWith("local-ai-") && busy;
-              const isUser = m.role === "user";
-              return (
-                <div
-                  key={m._id}
-                  style={{ display: "flex", width: "100%", justifyContent: isUser ? "flex-end" : "flex-start" }}
-                >
+          <div
+            style={{
+              padding: "0.6rem 0.75rem",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((o) => !o)}
+              title={sidebarOpen ? "대화 이력 접기" : "대화 이력 펼치기"}
+              aria-expanded={sidebarOpen}
+              aria-label={sidebarOpen ? "대화 이력 접기" : "대화 이력 펼치기"}
+              style={{
+                background: "none",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: "0.3rem 0.45rem",
+                cursor: "pointer",
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {sidebarOpen ? <IconChevronLeft /> : <IconChevronRight />}
+            </button>
+            <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {activeTitle}
+            </span>
+            <button
+              type="button"
+              onClick={startNewDraft}
+              style={{
+                background: "none",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: "0.3rem 0.5rem",
+                cursor: "pointer",
+                color: "var(--text-secondary)",
+                fontSize: 12,
+                flexShrink: 0,
+              }}
+            >
+              + 새 채팅
+            </button>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              padding: "0.75rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {messages.length === 0 && active === DRAFT_ID ? (
+              <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p style={{ color: "var(--text-muted)", fontSize: 14 }}>메시지를 입력하여 대화를 시작하세요.</p>
+              </div>
+            ) : (
+              messages.map((m) => {
+                const isPendingAi = m._id.startsWith("local-ai-") && busy;
+                const isUser = m.role === "user";
+                return (
                   <div
-                    className={`chat-md ${isUser ? "chat-md-user" : ""}`}
-                    style={{
-                      maxWidth: "min(92%, 28rem)",
-                      padding: "0.55rem 0.75rem",
-                      borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-                      background: isUser ? "var(--accent)" : m._id.startsWith("err-") ? "var(--danger-subtle)" : "var(--bg-elevated)",
-                      color: isUser ? "#fff" : m._id.startsWith("err-") ? "#fca5a5" : "var(--text-primary)",
-                      fontSize: 14,
-                      border: isPendingAi ? "1px dashed var(--text-muted)" : undefined,
-                    }}
+                    key={m._id}
+                    style={{ display: "flex", width: "100%", justifyContent: isUser ? "flex-end" : "flex-start", flexShrink: 0 }}
                   >
-                    {isPendingAi ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <span className="snapword-chat-wait" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                          응답을 작성하는 중입니다…
-                        </span>
-                        <span style={{ display: "flex", alignItems: "center" }} aria-hidden>
-                          <span className="snapword-chat-dot" />
-                          <span className="snapword-chat-dot" />
-                          <span className="snapword-chat-dot" />
-                        </span>
-                      </div>
-                    ) : (
-                      <Markdown>{m.content}</Markdown>
-                    )}
+                    <div
+                      className={`chat-md ${isUser ? "chat-md-user" : ""}`}
+                      style={{
+                        maxWidth: "min(92%, 28rem)",
+                        padding: "0.55rem 0.75rem",
+                        borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                        background: isUser ? "var(--accent)" : m._id.startsWith("err-") ? "var(--danger-subtle)" : "var(--bg-elevated)",
+                        color: isUser ? "#fff" : m._id.startsWith("err-") ? "#fca5a5" : "var(--text-primary)",
+                        fontSize: 14,
+                        border: isPendingAi ? "1px dashed var(--text-muted)" : undefined,
+                      }}
+                    >
+                      {isPendingAi ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <span className="snapword-chat-wait" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                            응답을 작성하는 중입니다…
+                          </span>
+                          <span style={{ display: "flex", alignItems: "center" }} aria-hidden>
+                            <span className="snapword-chat-dot" />
+                            <span className="snapword-chat-dot" />
+                            <span className="snapword-chat-dot" />
+                          </span>
+                        </div>
+                      ) : (
+                        <Markdown>{m.content}</Markdown>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={bottom} />
+                );
+              })
+            )}
+            <div ref={bottom} />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, padding: "0.5rem", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={busy ? "응답 대기 중…" : "메시지를 입력하세요…"}
+              disabled={busy}
+              style={{ flex: 1, fontSize: 14, opacity: busy ? 0.75 : 1, minWidth: 0 }}
+              onKeyDown={(e) => e.key === "Enter" && !busy && void send()}
+            />
+            <button
+              type="button"
+              disabled={busy || !input.trim()}
+              onClick={() => void send()}
+              style={{ ...btnSend, opacity: busy ? 0.85 : 1, cursor: busy ? "wait" : "pointer" }}
+            >
+              {busy ? "대기…" : "전송"}
+            </button>
+          </div>
         </div>
 
-        {/* Input bar - sticky bottom */}
-        <div style={{ display: "flex", gap: 8, padding: "0.5rem", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={busy ? "응답 대기 중…" : "메시지를 입력하세요…"}
-            disabled={busy}
-            style={{ flex: 1, fontSize: 14, opacity: busy ? 0.75 : 1 }}
-            onKeyDown={(e) => e.key === "Enter" && !busy && void send()}
+        {sidebarOpen && (
+          <div
+            role="presentation"
+            aria-hidden
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 4,
+              background: "rgba(0, 0, 0, 0.42)",
+              borderRadius: 13,
+            }}
           />
-          <button
-            type="button"
-            disabled={busy || !input.trim()}
-            onClick={() => void send()}
-            style={{ ...btnSend, opacity: busy ? 0.85 : 1, cursor: busy ? "wait" : "pointer" }}
+        )}
+
+        <aside
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: SIDEBAR_W,
+            zIndex: 5,
+            transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.22s ease",
+            background: "var(--bg-elevated)",
+            borderRight: "1px solid var(--border)",
+            borderTopLeftRadius: 13,
+            borderBottomLeftRadius: 13,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: sidebarOpen ? "4px 0 20px rgba(0, 0, 0, 0.2)" : "none",
+            pointerEvents: sidebarOpen ? "auto" : "none",
+            overflow: "hidden",
+          }}
+          aria-hidden={!sidebarOpen}
+        >
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              padding: "0.75rem",
+              boxSizing: "border-box",
+            }}
           >
-            {busy ? "대기…" : "전송"}
-          </button>
-        </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>대화 이력</span>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                title="이력 패널 접기"
+                aria-label="대화 이력 패널 접기"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: "0.25rem",
+                  cursor: "pointer",
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <IconChevronLeft />
+              </button>
+            </div>
+            <button type="button" onClick={startNewDraft} style={btnNewChat}>
+              + 새 채팅
+            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minHeight: 0, overflowY: "auto" }}>
+              {threads.map((t) => (
+                <button
+                  key={t._id}
+                  type="button"
+                  onClick={() => void openThread(t._id, session)}
+                  style={{
+                    ...btnThread,
+                    border: active === t._id ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    background: active === t._id ? "var(--accent-subtle)" : "var(--bg-card)",
+                    color: active === t._id ? "var(--text-primary)" : "var(--text-secondary)",
+                    fontWeight: active === t._id ? 600 : 500,
+                    height: 38,
+                    flexShrink: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {t.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
       </section>
     </div>
+  );
+}
+
+function IconChevronLeft() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconChevronRight() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 

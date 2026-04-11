@@ -263,8 +263,8 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   const blocks = qs
     .map((q, i) => {
       return `<div class="q">
-  <div class="line1"><span class="qnum">${i + 1}.</span> ${escapeHtml(q.clue)}</div>
-  <div class="line2">힌트: ${escapeHtml(clueTypeLabelKo(q.type))} &nbsp;│&nbsp; 정답: <span class="blank"></span></div>
+  <div class="line1"><span class="qnum">${i + 1}.</span> <span class="tag">${escapeHtml(clueTypeLabelKo(q.type))}</span> ${escapeHtml(q.clue)}</div>
+  <div class="answer-blank"></div>
 </div>`;
     })
     .join("");
@@ -286,8 +286,8 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   .q { padding: 6px 0; border-bottom: 1px solid #e5e7eb; }
   .line1 { font-size: 13px; line-height: 1.5; }
   .qnum { font-weight: 700; color: #333; }
-  .line2 { font-size: 12px; color: #666; margin-top: 2px; }
-  .blank { display: inline-block; min-width: 180px; border-bottom: 1.5px solid #111; margin-left: 4px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; color: #fff; background: #6b7280; border-radius: 3px; padding: 1px 6px; margin-right: 6px; vertical-align: middle; }
+  .answer-blank { margin-top: 4px; height: 20px; }
   .answer-page { page-break-before: always; }
   .answer-page h2 { font-size: 16px; margin: 0 0 12px; border-bottom: 2px double #111; padding-bottom: 8px; }
   .answer-table { border-collapse: collapse; width: 100%; }
@@ -297,7 +297,6 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   @media print { body { margin: 0; } .answer-page { break-before: page; } }
 </style></head><body>
 <h1>SnapWord — 단어 연습지</h1>
-<p class="meta">인쇄: ${escapeHtml(when)} · ${qs.length}문항</p>
 ${blocks}
 <div class="answer-page">
   <h2>정답</h2>
