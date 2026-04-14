@@ -8,10 +8,11 @@ type Props = {
   priority?: boolean;
 };
 
+/** 사이트 타이틀 옆 마크. 파비콘은 `app/layout.tsx`의 `metadata.icons`(`/icon.png`)와 별도입니다. */
 export function AppIcon({ size = 28, className, alt = "SnapWord", priority }: Props) {
   return (
     <Image
-      src="/icon.png"
+      src="/site-title-icon.png"
       alt={alt}
       width={size}
       height={size}

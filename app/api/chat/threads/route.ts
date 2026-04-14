@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { ChatThread } from "@/models/ChatThread";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     }
 
     await connectDB();
-    const user = await User.findById(userId).exec();
+    const user = await getUserModel().findById(userId).exec();
     if (!user || user.phone !== phone) {
       return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
     }
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const user = await User.findById(userId).exec();
+    const user = await getUserModel().findById(userId).exec();
     if (!user || user.phone !== phone) {
       return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
     }

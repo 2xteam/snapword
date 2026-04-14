@@ -1,6 +1,8 @@
-/* ── Raycast-style Dark Theme Variables ── */
+/* ── Theme Variables ── */
+/* 기본(fallback)은 다크 테마. data-theme 속성으로 전환됩니다. */
 
-:root {
+:root,
+[data-theme="dark"] {
   --bg-primary: #0a0a0f;
   --bg-secondary: #111118;
   --bg-card: #16161e;
@@ -20,6 +22,62 @@
   --warning: #f59e0b;
   --input-bg: #1a1a24;
   --input-border: #2a2a36;
+  --nav-height: 56px;
+  --nav-top: 10px;
+}
+
+/* ── Light Theme ── */
+[data-theme="light"] {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #eaeaec;
+  --bg-card: #ffffff;
+  --bg-elevated: #f0f0f2;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --text-primary: #111118;
+  --text-secondary: #4a4a5a;
+  --text-muted: #9090a0;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-subtle: rgba(37, 99, 235, 0.1);
+  --danger: #dc2626;
+  --danger-subtle: rgba(220, 38, 38, 0.1);
+  --success: #16a34a;
+  --success-subtle: rgba(22, 163, 74, 0.1);
+  --warning: #d97706;
+  --input-bg: #ffffff;
+  --input-border: rgba(0, 0, 0, 0.15);
+  --nav-height: 56px;
+  --nav-top: 10px;
+}
+
+/* ── Violet Theme ── */
+[data-theme="violet"] {
+  --bg-primary: #0d0b1a;
+  --bg-secondary: #13101f;
+  --bg-card: #1a1628;
+  --bg-elevated: #221d33;
+  --border: rgba(139, 92, 246, 0.18);
+  --border-subtle: rgba(139, 92, 246, 0.09);
+  --text-primary: #ede9fe;
+  --text-secondary: #a78bfa;
+  --text-muted: #6d5faa;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-subtle: rgba(139, 92, 246, 0.16);
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.12);
+  --warning: #fbbf24;
+  --input-bg: #1e1830;
+  --input-border: rgba(139, 92, 246, 0.22);
+  --nav-height: 56px;
+  --nav-top: 10px;
+}
+
+/* ── Custom Theme (CSS 변수는 ThemeProvider에서 인라인 style로 주입) ── */
+[data-theme="custom"] {
   --nav-height: 56px;
   --nav-top: 10px;
 }
@@ -204,7 +262,7 @@ a:hover {
 .chat-md blockquote {
   margin: 0.4em 0;
   padding: 0.2em 0.65em;
-  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  border-left: 3px solid var(--border);
   color: inherit;
   opacity: 0.85;
 }
@@ -251,10 +309,10 @@ a:hover {
   right: 12px;
   display: flex;
   flex-direction: column;
-  background: rgba(10, 10, 15, 0.55);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--bg-primary) 14%, transparent);
+  backdrop-filter: saturate(220%) blur(28px);
+  -webkit-backdrop-filter: saturate(220%) blur(28px);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
   border-radius: 14px;
   z-index: 100;
   overflow: hidden;
@@ -308,13 +366,13 @@ a:hover {
 
 .topnav-link:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--border-subtle);
   opacity: 1;
 }
 
 .topnav-link[data-active="true"] {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border);
 }
 
 .topnav-logout {
@@ -324,7 +382,7 @@ a:hover {
   font-weight: 500;
   color: var(--text-muted);
   text-decoration: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
@@ -401,7 +459,7 @@ a:hover {
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
   transition: color 0.15s;
 }
 
@@ -419,12 +477,12 @@ a:hover {
   width: fit-content;
 }
 
-/* Click-away backdrop */
+/* Click-away backdrop — 투명, 클릭 영역만 담당 */
 .topnav-backdrop {
   position: fixed;
   inset: 0;
   z-index: 99;
-  background: rgba(0, 0, 0, 0.3);
+  background: transparent;
 }
 
 /* Responsive breakpoints */

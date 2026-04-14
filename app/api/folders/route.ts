@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { Folder } from "@/models/Folder";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const user = await User.findById(createdBy).exec();
+    const user = await getUserModel().findById(createdBy).exec();
     if (!user || user.phone !== phone) {
       return NextResponse.json(
         { ok: false, error: "사용자 정보와 전화번호가 일치하지 않습니다." },

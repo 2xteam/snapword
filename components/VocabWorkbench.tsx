@@ -218,7 +218,7 @@ export function VocabWorkbench() {
             <div style={{ fontWeight: 600, fontSize: 14 }}>회원가입</div>
             <div style={{ display: "grid", gap: "0.35rem" }}>
               <input
-                placeholder="이름 (선택)"
+                placeholder="이름 (필수)"
                 value={regName}
                 onChange={(e) => setRegName(e.target.value)}
               />

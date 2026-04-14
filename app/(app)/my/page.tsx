@@ -3,6 +3,8 @@
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTheme } from "@/components/ThemeProvider";
+import { PRESET_THEMES, type ThemeCustomColor, type ThemeId } from "@/lib/theme";
 import { loadSession, type SessionUser } from "@/lib/session";
 
 export default function MyPage() {
@@ -12,6 +14,10 @@ export default function MyPage() {
   const [testCount, setTestCount] = useState(0);
   const [avg, setAvg] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  const { themeId, custom, setTheme } = useTheme();
+  const [customAccent, setCustomAccent] = useState(custom.accent);
+  const [customBg, setCustomBg] = useState(custom.bg);
 
   useEffect(() => {
     const s = loadSession();
@@ -39,6 +45,17 @@ export default function MyPage() {
       setLoaded(true);
     })();
   }, [session]);
+
+  // 커스텀 색상이 외부에서 바뀌면 동기화
+  useEffect(() => {
+    setCustomAccent(custom.accent);
+    setCustomBg(custom.bg);
+  }, [custom]);
+
+  const applyCustom = () => {
+    const c: ThemeCustomColor = { accent: customAccent, bg: customBg };
+    setTheme("custom", c);
+  };
 
   if (!session) return null;
 
@@ -88,6 +105,121 @@ export default function MyPage() {
           <StatCard label="평균 점수" value={avg === null ? "—" : `${avg}점`} />
         </div>
       )}
+
+      {/* Theme selector */}
+      <div style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", overflow: "hidden" }}>
+        <div style={{ padding: "0.85rem 1rem 0.6rem", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>테마</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>앱 전체 색상 분위기를 변경합니다.</div>
+        </div>
+
+        {/* Preset swatches */}
+        <div style={{ padding: "0.85rem 1rem", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.6rem" }}>
+          {PRESET_THEMES.map((t) => {
+            const isActive = themeId === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  if (t.id === "custom") {
+                    // 커스텀 카드 클릭 → 색상 패널 활성화만(아직 적용 안 함)
+                    setTheme("custom", { accent: customAccent, bg: customBg });
+                  } else {
+                    setTheme(t.id as ThemeId);
+                  }
+                }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "0.65rem 0.4rem",
+                  borderRadius: 12,
+                  border: isActive
+                    ? `2px solid var(--accent)`
+                    : "1px solid var(--border)",
+                  background: isActive ? "var(--accent-subtle)" : "var(--bg-elevated)",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s, background 0.15s",
+                }}
+              >
+                {/* 미니 프리뷰 */}
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: t.id === "custom"
+                    ? `linear-gradient(135deg, ${customBg} 50%, ${customAccent} 50%)`
+                    : t.preview.bg,
+                  border: `3px solid ${t.preview.accent}`,
+                  flexShrink: 0,
+                  position: "relative",
+                  overflow: "hidden",
+                }}>
+                  {t.id !== "custom" && (
+                    <div style={{
+                      position: "absolute", bottom: 4, left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 16, height: 3,
+                      borderRadius: 2,
+                      background: t.preview.accent,
+                    }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? "var(--accent)" : "var(--text-secondary)" }}>
+                  {t.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Custom color pickers — 항상 렌더, 비활성 시 흐리게 */}
+        <div style={{
+          margin: "0 1rem 0.85rem",
+          padding: "0.85rem",
+          borderRadius: 12,
+          background: "var(--bg-elevated)",
+          border: `1px solid ${themeId === "custom" ? "var(--accent)" : "var(--border-subtle)"}`,
+          opacity: themeId === "custom" ? 1 : 0.45,
+          pointerEvents: themeId === "custom" ? "auto" : "none",
+          transition: "opacity 0.2s, border-color 0.2s",
+        }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.65rem" }}>
+              커스텀 색상 설정
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <ColorPicker
+                label="배경색"
+                value={customBg}
+                onChange={setCustomBg}
+              />
+              <ColorPicker
+                label="강조색"
+                value={customAccent}
+                onChange={setCustomAccent}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={applyCustom}
+              style={{
+                marginTop: "0.65rem",
+                width: "100%",
+                padding: "0.55rem",
+                borderRadius: 10,
+                border: "none",
+                background: customAccent,
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+                transition: "filter 0.15s",
+              }}
+            >
+              커스텀 테마 적용
+            </button>
+          </div>
+      </div>
     </div>
   );
 }
@@ -98,6 +230,50 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>{label}</div>
       <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--text-primary)", marginTop: 4 }}>{value}</div>
     </div>
+  );
+}
+
+function ColorPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 5, fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}>
+      {label}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: 34,
+            height: 34,
+            padding: 2,
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--input-bg)",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        />
+        <input
+          type="text"
+          value={value}
+          maxLength={7}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v);
+          }}
+          style={{ fontSize: 12, width: "100%", fontFamily: "monospace" }}
+          placeholder="#rrggbb"
+        />
+      </div>
+    </label>
   );
 }
 

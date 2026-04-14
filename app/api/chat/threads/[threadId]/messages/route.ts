@@ -9,7 +9,7 @@ import {
   listConversationMessages,
 } from "@/lib/openAiConversations";
 import { ChatThread, type ChatThreadDocument } from "@/models/ChatThread";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -32,7 +32,7 @@ async function assertThread(
   }
 
   await connectDB();
-  const user = await User.findById(userId).exec();
+  const user = await getUserModel().findById(userId).exec();
   if (!user || user.phone !== p) {
     return {
       ok: false,

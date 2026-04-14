@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { TestResult } from "@/models/TestResult";
 import { TestSession } from "@/models/TestSession";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
 
 export const runtime = "nodejs";
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     }
 
     await connectDB();
-    const user = await User.findById(userId).exec();
+    const user = await getUserModel().findById(userId).exec();
     if (!user || user.phone !== phone) {
       return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
     }

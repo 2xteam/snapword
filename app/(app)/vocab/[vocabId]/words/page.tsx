@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
-import { emptyVocabularyPayload } from "@/lib/vocabularyTypes";
+import { emptyVocabularyPayload, normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
 import { loadSession, type SessionUser } from "@/lib/session";
 
 type WordRow = VocabularyPayload & { _id?: string };
@@ -125,7 +125,7 @@ export default function VocabWordsEditPage() {
         setMsg(json.error ?? "Vision 실패");
         return;
       }
-      setVisionRows(json.words.map((w) => ({ ...w })));
+      setVisionRows(json.words.map((w) => normalizeVocabularyPayload(w)));
       setDialogMode("vision");
     } catch {
       setMsg("네트워크 오류");
@@ -270,8 +270,27 @@ export default function VocabWordsEditPage() {
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>#{i + 1}</span>
                     <button type="button" onClick={() => removeVisionRow(i)} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 12 }}>삭제</button>
                   </div>
-                  <Field label="단어" value={vr.word} onChange={(v) => updateVisionRow(i, { word: v })} />
-                  <Field label="설명" value={vr.meaning} onChange={(v) => updateVisionRow(i, { meaning: v })} />
+                  <Field label="단어 *" value={vr.word} onChange={(v) => updateVisionRow(i, { word: v })} />
+                  <Field label="설명 *" value={vr.meaning} onChange={(v) => updateVisionRow(i, { meaning: v })} multiline />
+                  <Field label="예문" value={vr.example} onChange={(v) => updateVisionRow(i, { example: v })} multiline />
+                  <Field
+                    label="동의어 (쉼표 구분)"
+                    value={vr.synonyms.join(", ")}
+                    onChange={(v) =>
+                      updateVisionRow(i, {
+                        synonyms: v.split(",").map((s) => s.trim()).filter(Boolean),
+                      })
+                    }
+                  />
+                  <Field
+                    label="반의어 (쉼표 구분)"
+                    value={vr.antonyms.join(", ")}
+                    onChange={(v) =>
+                      updateVisionRow(i, {
+                        antonyms: v.split(",").map((s) => s.trim()).filter(Boolean),
+                      })
+                    }
+                  />
                 </div>
               ))}
             </div>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -24,6 +24,20 @@ export async function POST(req: Request) {
     const pinConfirm =
       typeof body.pinConfirm === "string" ? body.pinConfirm : pin;
 
+    if (!nameRaw) {
+      return NextResponse.json(
+        { ok: false, error: "이름을 입력해 주세요." },
+        { status: 400 },
+      );
+    }
+
+    if (nameRaw.length > 100) {
+      return NextResponse.json(
+        { ok: false, error: "이름은 100자 이하여야 합니다." },
+        { status: 400 },
+      );
+    }
+
     if (!phone || pin.length < 4) {
       return NextResponse.json(
         { ok: false, error: "phone, pin(4자 이상)이 필요합니다." },
@@ -38,11 +52,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const name =
-      nameRaw ||
-      (phone.length >= 4 ? `사용자 ${phone.slice(-4)}` : "사용자");
+    const name = nameRaw;
 
     await connectDB();
+    const User = getUserModel();
     const hashed = await bcrypt.hash(pin, 10);
     const user = await User.create({
       name,

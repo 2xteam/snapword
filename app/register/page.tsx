@@ -8,6 +8,7 @@ import { saveSession, type SessionUser } from "@/lib/session";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
@@ -17,6 +18,17 @@ export default function RegisterPage() {
   const submit = useCallback(async () => {
     setBusy(true);
     setMsg(null);
+    const nameTrim = name.trim();
+    if (!nameTrim) {
+      setMsg("이름을 입력해 주세요.");
+      setBusy(false);
+      return;
+    }
+    if (nameTrim.length > 100) {
+      setMsg("이름은 100자 이하여야 합니다.");
+      setBusy(false);
+      return;
+    }
     if (pin !== pin2) {
       setMsg("PIN과 PIN 확인이 일치하지 않습니다.");
       setBusy(false);
@@ -26,7 +38,12 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, pin, pinConfirm: pin2 }),
+        body: JSON.stringify({
+          name: nameTrim,
+          phone,
+          pin,
+          pinConfirm: pin2,
+        }),
       });
       const json = (await res.json()) as {
         ok: boolean;
@@ -44,7 +61,7 @@ export default function RegisterPage() {
     } finally {
       setBusy(false);
     }
-  }, [phone, pin, pin2, router]);
+  }, [name, phone, pin, pin2, router]);
 
   return (
     <main
@@ -71,8 +88,18 @@ export default function RegisterPage() {
           회원가입
         </h1>
         <p style={{ margin: "0 0 1.25rem", color: "var(--text-secondary)", fontSize: 14 }}>
-          전화번호와 PIN을 두 번 입력해 주세요.
+          이름, 전화번호, PIN을 입력해 주세요.
         </p>
+        <label style={lab}>
+          이름
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            placeholder="표시될 이름"
+            style={inp}
+          />
+        </label>
         <label style={lab}>
           전화번호
           <input value={phone} onChange={(e) => setPhone(e.target.value)} style={inp} />

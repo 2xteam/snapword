@@ -17,5 +17,15 @@ export type UserDocument = InferSchemaType<typeof UserSchema> & {
   _id: mongoose.Types.ObjectId;
 };
 
-export const User: Model<UserDocument> =
-  mongoose.models.User ?? mongoose.model<UserDocument>("User", UserSchema, "users");
+/**
+ * `users` 컬렉션은 URI 기본 DB(`/vocab` 등)가 아닌 `MONGO_USER_DB`(기본 `user`) DB에 둡니다.
+ * 반드시 `connectDB()` 완료 후 호출하세요.
+ */
+export function getUserModel(): Model<UserDocument> {
+  const dbName = (process.env.MONGO_USER_DB ?? "user").trim() || "user";
+  const userDb = mongoose.connection.useDb(dbName, { useCache: true });
+  return (
+    (userDb.models.User as Model<UserDocument> | undefined) ??
+    userDb.model<UserDocument>("User", UserSchema, "users")
+  );
+}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
-import { User } from "@/models/User";
+import { getUserModel } from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
+    const User = getUserModel();
     const candidates = await User.find({ phone }).exec();
     const matches = [];
     for (const u of candidates) {
