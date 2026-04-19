@@ -79,7 +79,7 @@ export default function HomeFoldersPage() {
     <div style={{ display: "grid", gap: "0.75rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)", flex: 1 }}>
-          내 폴더
+          Folders
         </h1>
         <button type="button" onClick={openCreate} style={btnSmall} title="새 폴더">
           <FolderPlusIcon />

@@ -82,7 +82,7 @@ export default function TrashPage() {
 
   return (
     <div style={{ display: "grid", gap: "0.75rem" }}>
-      <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)" }}>휴지통</h1>
+      <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)" }}>Trash</h1>
 
       {msg ? <p style={{ color: "var(--danger)", fontSize: 13 }}>{msg}</p> : null}
 

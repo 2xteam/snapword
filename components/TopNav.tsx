@@ -50,7 +50,7 @@ export function TopNav() {
               );
             })}
             <button type="button" onClick={logout} className="topnav-logout">
-              로그아웃
+              Logout
             </button>
           </div>
 
@@ -88,7 +88,7 @@ export function TopNav() {
             onClick={() => { setOpen(false); logout(); }}
             className="topnav-logout topnav-menu-logout"
           >
-            로그아웃
+            Logout
           </button>
         </div>
       </nav>

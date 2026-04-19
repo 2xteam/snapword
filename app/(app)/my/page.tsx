@@ -70,6 +70,8 @@ export default function MyPage() {
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
+      <h1 style={{ margin: 0, fontSize: "1.3rem", color: "var(--text-primary)" }}>My</h1>
+
       {/* Profile */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "1rem", borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
         <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--accent-subtle)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>

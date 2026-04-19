@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { useDragScroll } from "@/lib/useDragScroll";
 
 type FolderRow = { _id: string; name: string };
 type DeckRow = { _id: string; name: string };
@@ -17,6 +18,8 @@ export default function HomePage() {
   const [hasTests, setHasTests] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const deckDragRef = useDragScroll();
+  const folderDragRef = useDragScroll();
 
   useEffect(() => {
     const s = loadSession();
@@ -61,7 +64,7 @@ export default function HomePage() {
             {decks.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>단어장이 없습니다.</p>
             ) : (
-              <div className="home-scroll-row" style={scrollRow}>
+              <div ref={deckDragRef} className="home-scroll-row" style={scrollRow}>
                 {decks.map((d) => (
                   <Link key={d._id} href={`/vocab/${d._id}`} style={thumbCard}>
                     <FileIcon />
@@ -78,7 +81,7 @@ export default function HomePage() {
             {folders.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>폴더가 없습니다.</p>
             ) : (
-              <div className="home-scroll-row" style={scrollRow}>
+              <div ref={folderDragRef} className="home-scroll-row" style={scrollRow}>
                 {folders.map((f) => (
                   <Link key={f._id} href={`/folders/${f._id}`} style={thumbCard}>
                     <FolderIcon />

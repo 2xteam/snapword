@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
+import { useDragScroll } from "@/lib/useDragScroll";
 
 type W = {
   _id: string;
@@ -35,6 +36,11 @@ export default function StudyPage() {
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useDragScroll();
+  const mergedRef = useCallback((node: HTMLDivElement | null) => {
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    dragRef(node);
+  }, [dragRef]);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -143,7 +149,7 @@ export default function StudyPage() {
 
           {/* Scroll-snap carousel */}
           <div
-            ref={scrollRef}
+            ref={mergedRef}
             onScroll={onScroll}
             className="study-carousel"
             style={{
