@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
@@ -14,9 +14,9 @@ type W = {
   example: string;
   synonyms: string[];
   antonyms: string[];
+  wrongCount: number;
+  attempts: number;
 };
-
-type TestWordStat = { wrongCount: number; attempts: number };
 
 const DICT = (word: string) =>
   `https://en.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word)}&from=nsearch`;
@@ -24,13 +24,11 @@ const DICT = (word: string) =>
 const PEEK = 12;
 const GAP = 8;
 
-export default function StudyPage() {
-  const { vocabId } = useParams<{ vocabId: string }>();
+export default function WrongWordsPage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionUser | null>(null);
   const [words, setWords] = useState<W[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [testStats, setTestStats] = useState<Record<string, TestWordStat>>({});
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
 
@@ -43,31 +41,17 @@ export default function StudyPage() {
     else setSession(s);
   }, [router]);
 
-  const load = useCallback(async () => {
-    if (!vocabId || !session) return;
-    const [wr, tr] = await Promise.all([
-      fetch(`/api/words?vocabId=${encodeURIComponent(vocabId)}`),
-      fetch(
-        `/api/test-word-stats?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&vocabIds=${encodeURIComponent(vocabId)}`,
-      ),
-    ]);
-    const wj = (await wr.json()) as { ok: boolean; items?: W[] };
-    const tj = (await tr.json()) as {
-      ok: boolean;
-      byWord?: { wordId: string; wrongCount: number; attempts: number }[];
-    };
-    if (wj.ok && wj.items) setWords(wj.items);
-    const m: Record<string, TestWordStat> = {};
-    if (tj.ok && tj.byWord) {
-      for (const r of tj.byWord) {
-        m[String(r.wordId)] = { wrongCount: r.wrongCount, attempts: r.attempts };
-      }
-    }
-    setTestStats(m);
-    setLoaded(true);
-  }, [vocabId, session]);
-
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const res = await fetch(
+        `/api/wrong-words?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&limit=50`,
+      );
+      const json = (await res.json()) as { ok: boolean; items?: W[] };
+      if (json.ok && json.items) setWords(json.items);
+      setLoaded(true);
+    })();
+  }, [session]);
 
   const onScroll = useCallback(() => {
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
@@ -93,14 +77,11 @@ export default function StudyPage() {
   };
 
   const w = words[idx];
-  const tw = w ? testStats[w._id] : undefined;
-  const wrong = tw?.wrongCount ?? 0;
-  const attempts = tw?.attempts ?? 0;
   const progressPct = words.length > 1
     ? Math.round((idx / (words.length - 1)) * 100)
     : 100;
 
-  if (!session || !vocabId) return null;
+  if (!session) return null;
 
   return (
     <div style={{
@@ -112,14 +93,13 @@ export default function StudyPage() {
       marginBottom: "-2rem",
       padding: "0.5rem 0 0",
     }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.35rem", flexShrink: 0, padding: "0 1rem" }}>
-        <Link href={`/vocab/${vocabId}`} style={backBtnStyle} title="뒤로">
+        <Link href="/home" style={backBtnStyle} title="뒤로">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
-        <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)", flex: 1 }}>Study</h1>
+        <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)", flex: 1 }}>많이 틀린 단어</h1>
         {words.length > 0 && (
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{idx + 1} / {words.length}</span>
         )}
@@ -128,20 +108,20 @@ export default function StudyPage() {
       {!loaded ? (
         <p style={{ color: "var(--text-muted)", padding: "0 1rem" }}>로딩중입니다…</p>
       ) : words.length === 0 ? (
-        <p style={{ color: "var(--text-secondary)", padding: "0 1rem" }}>단어가 없습니다.</p>
+        <p style={{ color: "var(--text-secondary)", padding: "0 1rem" }}>틀린 단어가 없습니다.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-          {/* Progress */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.35rem", flexShrink: 0, padding: "0 1rem" }}>
             <div style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--bg-elevated)", overflow: "hidden" }}>
-              <div style={{ width: `${progressPct}%`, height: "100%", background: "var(--accent)", transition: "width 0.3s ease" }} />
+              <div style={{ width: `${progressPct}%`, height: "100%", background: "var(--danger)", transition: "width 0.3s ease" }} />
             </div>
-            <span style={{ fontSize: 11, color: wrong >= 3 ? "#fca5a5" : "var(--text-muted)", fontWeight: wrong >= 3 ? 700 : 400, flexShrink: 0 }}>
-              오답 {wrong} / 테스트 {attempts}
-            </span>
+            {w && (
+              <span style={{ fontSize: 11, color: "#fca5a5", fontWeight: 700, flexShrink: 0 }}>
+                오답 {w.wrongCount} / 테스트 {w.attempts}
+              </span>
+            )}
           </div>
 
-          {/* Scroll-snap carousel */}
           <div
             ref={scrollRef}
             onScroll={onScroll}
@@ -155,13 +135,10 @@ export default function StudyPage() {
               minHeight: 0,
             }}
           >
-            {/* Left spacer — ensures first card can be centered */}
             <div style={{ flexShrink: 0, width: PEEK }} />
 
             {words.map((word, i) => {
               const isFlipped = flipped.has(word._id);
-              const stat = testStats[word._id];
-              const wc = stat?.wrongCount ?? 0;
               return (
                 <div
                   key={word._id}
@@ -174,9 +151,12 @@ export default function StudyPage() {
                   }}
                 >
                   <div style={{ textAlign: "center", paddingTop: "1.5rem" }}>
-                    <div style={{ fontSize: wc >= 3 ? "1.8rem" : "1.5rem", fontWeight: 600, color: isFlipped ? "var(--accent)" : "var(--text-primary)" }}>
+                    <div style={{ fontSize: "1.8rem", fontWeight: 600, color: isFlipped ? "var(--danger)" : "var(--text-primary)" }}>
                       {word.word}
                     </div>
+                    <span style={{ display: "inline-block", marginTop: 6, padding: "2px 10px", borderRadius: 999, background: "var(--danger-subtle)", color: "var(--danger)", fontSize: 11, fontWeight: 600 }}>
+                      오답 {word.wrongCount}회
+                    </span>
                     <button
                       type="button"
                       onClick={() => toggleFlip(word._id)}
@@ -217,7 +197,6 @@ export default function StudyPage() {
               );
             })}
 
-            {/* Right spacer — ensures last card can be centered */}
             <div style={{ flexShrink: 0, width: PEEK }} />
           </div>
 
@@ -249,6 +228,7 @@ const cardStyle: CSSProperties = {
 };
 
 const flipBtnStyle: CSSProperties = {
+  display: "block",
   marginTop: 24,
   fontSize: 13,
   padding: "0.4rem 0.85rem",
@@ -257,6 +237,8 @@ const flipBtnStyle: CSSProperties = {
   background: "var(--bg-elevated)",
   color: "var(--text-secondary)",
   cursor: "pointer",
+  marginLeft: "auto",
+  marginRight: "auto",
 };
 
 const dictBtnStyle: CSSProperties = {

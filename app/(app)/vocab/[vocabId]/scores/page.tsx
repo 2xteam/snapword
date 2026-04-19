@@ -71,20 +71,30 @@ export default function ScoresPage() {
           <li style={{ color: "var(--text-muted)" }}>기록이 없습니다. Test를 먼저 풀어 보세요.</li>
         ) : (
           rows.map((r, i) => (
-            <li
-              key={r._id}
-              style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: "0.75rem 1rem",
-                listStyle: "none",
-                marginLeft: "-1.1rem",
-                color: "var(--text-primary)",
-              }}
-            >
-              <strong>#{rows.length - i}차</strong> · {new Date(r.createdAt).toLocaleString("ko-KR")}{" "}
-              <span style={{ color: "var(--accent)", fontWeight: 800 }}>{r.score}점</span> ({r.correct}/{r.total})
+            <li key={r._id} style={{ listStyle: "none", marginLeft: "-1.1rem" }}>
+              <Link
+                href={`/vocab/${vocabId}/scores/${r._id}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  padding: "0.75rem 1rem",
+                  color: "var(--text-primary)",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <strong>#{rows.length - i}차</strong> · {new Date(r.createdAt).toLocaleString("ko-KR")}{" "}
+                  <span style={{ color: "var(--accent)", fontWeight: 800 }}>{r.score}점</span> ({r.correct}/{r.total})
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M9 6l6 6-6 6" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
             </li>
           ))
         )}

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const nav = [
   { href: "/home", label: "Home", icon: HomeIcon },
+  { href: "/folders", label: "Folders", icon: FolderNavIcon },
   { href: "/print", label: "Print", icon: PrintIcon },
-  { href: "/chat", label: "Chat", icon: ChatIcon },
   { href: "/trash", label: "Trash", icon: TrashIcon },
   { href: "/my", label: "My", icon: UserIcon },
 ];
@@ -24,11 +24,11 @@ function HomeIcon({ active }: { active: boolean }) {
   );
 }
 
-function PrintIcon({ active }: { active: boolean }) {
+function FolderNavIcon({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M7 16V4h10v12M7 16H5a2 2 0 0 1-2-2v-4h18v4a2 2 0 0 1-2 2h-2M7 16h10v6H7v-6Z"
+        d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
         stroke={active ? "#3b82f6" : "#8b8b9e"}
         strokeWidth="1.6"
         strokeLinejoin="round"
@@ -37,11 +37,11 @@ function PrintIcon({ active }: { active: boolean }) {
   );
 }
 
-function ChatIcon({ active }: { active: boolean }) {
+function PrintIcon({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H6a2 2 0 0 1-2-2V6Z"
+        d="M7 16V4h10v12M7 16H5a2 2 0 0 1-2-2v-4h18v4a2 2 0 0 1-2 2h-2M7 16h10v6H7v-6Z"
         stroke={active ? "#3b82f6" : "#8b8b9e"}
         strokeWidth="1.6"
         strokeLinejoin="round"

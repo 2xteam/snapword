@@ -8,8 +8,8 @@ import { clearSession } from "@/lib/session";
 
 const nav = [
   { href: "/home", label: "Home" },
+  { href: "/folders", label: "Folders" },
   { href: "/print", label: "Print" },
-  { href: "/chat", label: "Chat" },
   { href: "/trash", label: "Trash" },
   { href: "/my", label: "My" },
 ];

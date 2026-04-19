@@ -24,6 +24,9 @@
   --input-border: #2a2a36;
   --nav-height: 56px;
   --nav-top: 10px;
+  --chat-fab-bg: #e8e8ed;
+  --chat-fab-fg: #0a0a0f;
+  --chat-btn-color: #e8e8ed;
 }
 
 /* ── Light Theme ── */
@@ -49,6 +52,9 @@
   --input-border: rgba(0, 0, 0, 0.15);
   --nav-height: 56px;
   --nav-top: 10px;
+  --chat-fab-bg: #111118;
+  --chat-fab-fg: #ffffff;
+  --chat-btn-color: #111118;
 }
 
 /* ── Violet Theme ── */
@@ -74,12 +80,18 @@
   --input-border: rgba(139, 92, 246, 0.22);
   --nav-height: 56px;
   --nav-top: 10px;
+  --chat-fab-bg: #8b5cf6;
+  --chat-fab-fg: #ffffff;
+  --chat-btn-color: #8b5cf6;
 }
 
 /* ── Custom Theme (CSS 변수는 ThemeProvider에서 인라인 style로 주입) ── */
 [data-theme="custom"] {
   --nav-height: 56px;
   --nav-top: 10px;
+  --chat-fab-bg: var(--accent);
+  --chat-fab-fg: #ffffff;
+  --chat-btn-color: var(--accent);
 }
 
 * {
@@ -564,6 +576,17 @@ a[style*="var(--bg-card)"]:hover {
 }
 
 .study-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Home thumbnail scroll row ── */
+
+.home-scroll-row {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.home-scroll-row::-webkit-scrollbar {
   display: none;
 }
 
