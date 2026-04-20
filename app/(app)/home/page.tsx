@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { useDragScroll } from "@/lib/useDragScroll";
+import { WordOfTheDayCard, type WotdData } from "@/components/WordOfTheDayCard";
+import { EgArticleList, type EgItem } from "@/components/DwtArticleList";
 
 type FolderRow = { _id: string; name: string };
 type DeckRow = { _id: string; name: string };
@@ -18,6 +20,9 @@ export default function HomePage() {
   const [hasTests, setHasTests] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [wotd, setWotd] = useState<WotdData | null>(null);
+  const [rssLoading, setRssLoading] = useState(true);
+  const [egItems, setEgItems] = useState<EgItem[]>([]);
   const deckDragRef = useDragScroll();
   const folderDragRef = useDragScroll();
 
@@ -48,11 +53,38 @@ export default function HomePage() {
     })();
   }, [session]);
 
+  useEffect(() => {
+    fetch("/api/rss-feeds")
+      .then((r) => r.json())
+      .then((j: { ok: boolean; wotd?: WotdData; eg?: EgItem[] }) => {
+        if (j.ok) {
+          if (j.wotd) setWotd(j.wotd);
+          if (j.eg) setEgItems(j.eg);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRssLoading(false));
+  }, []);
+
   if (!session) return null;
 
   return (
     <div style={{ display: "grid", gap: "1.5rem", minWidth: 0 }}>
-      <h1 style={{ margin: 0, fontSize: "1.3rem", color: "var(--text-primary)" }}>Home</h1>
+      {/* Word of the Day */}
+      {rssLoading ? (
+        <section>
+          <h2 style={{ margin: "0 0 0.6rem", fontSize: "1rem", color: "var(--text-primary)" }}>오늘의 Word!</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "1rem 1.1rem", borderRadius: 16, background: "var(--bg-elevated)", animation: "pulse 1.5s ease-in-out infinite" }}>
+            <div style={{ width: 100, height: 18, borderRadius: 6, background: "var(--border)" }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ width: "80%", height: 12, borderRadius: 4, background: "var(--border)" }} />
+              <div style={{ width: "60%", height: 12, borderRadius: 4, background: "var(--border)" }} />
+            </div>
+          </div>
+        </section>
+      ) : wotd ? (
+        <WordOfTheDayCard data={wotd} />
+      ) : null}
 
       {!loaded ? (
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩중입니다…</p>
@@ -106,7 +138,7 @@ export default function HomePage() {
                 cursor: hasTests && wrongCount > 0 ? "pointer" : "not-allowed",
               }}
             >
-              <WarningIcon />
+              <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>📝</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
                   많이 틀린 단어 보기
@@ -124,6 +156,11 @@ export default function HomePage() {
               </svg>
             </Link>
           </section>
+
+          {/* 최하단: English Grammar */}
+          {egItems.length > 0 && (
+            <EgArticleList items={egItems} limit={5} />
+          )}
         </>
       )}
     </div>
@@ -147,14 +184,6 @@ function FileIcon() {
   );
 }
 
-function WarningIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M12 9v4M12 17h.01" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round" />
-      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="var(--danger)" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 const scrollRow: CSSProperties = {
   display: "flex",
