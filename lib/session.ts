@@ -1,22 +1,26 @@
 export type SessionUser = { id: string; name: string; phone: string };
 
-export const SESSION_KEY = "snapword_user";
+export const SESSION_KEY = "snap_user";
 
-/** 로그인 유지 기간(초). 30일. */
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
 
 type StoredPayload = { v: 1; user: SessionUser; expiresAt: number };
 
-/* ── 쿠키 도메인 ──
- * NEXT_PUBLIC_COOKIE_DOMAIN=.myjane.co.kr  → 모든 *.myjane.co.kr 서브도메인 공유
- * 미설정(로컬 개발) → domain 속성 생략 → 현재 호스트에만 한정
- */
-const COOKIE_DOMAIN: string | undefined =
+const ENV_COOKIE_DOMAIN: string | undefined =
   typeof process !== "undefined" && process.env?.NEXT_PUBLIC_COOKIE_DOMAIN
     ? process.env.NEXT_PUBLIC_COOKIE_DOMAIN
     : undefined;
 
-// ── 쿠키 유틸 ──────────────────────────────────────────────
+function getEffectiveDomain(): string | undefined {
+  if (!ENV_COOKIE_DOMAIN) return undefined;
+  if (typeof location === "undefined") return undefined;
+  const host = location.hostname;
+  const domain = ENV_COOKIE_DOMAIN.startsWith(".")
+    ? ENV_COOKIE_DOMAIN.slice(1)
+    : ENV_COOKIE_DOMAIN;
+  if (host === domain || host.endsWith("." + domain)) return ENV_COOKIE_DOMAIN;
+  return undefined;
+}
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -35,21 +39,22 @@ function setCookie(name: string, value: string, maxAgeSec: number) {
   if (typeof document === "undefined") return;
   const isSecure =
     typeof location !== "undefined" && location.protocol === "https:";
+  const cookieDomain = getEffectiveDomain();
   let cookie =
     `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSec}; SameSite=Lax`;
-  if (COOKIE_DOMAIN) cookie += `; domain=${COOKIE_DOMAIN}`;
+  if (cookieDomain) cookie += `; domain=${cookieDomain}`;
   if (isSecure) cookie += "; Secure";
   document.cookie = cookie;
 }
 
 function deleteCookie(name: string) {
   if (typeof document === "undefined") return;
-  let cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
-  if (COOKIE_DOMAIN) cookie += `; domain=${COOKIE_DOMAIN}`;
-  document.cookie = cookie;
+  const cookieDomain = getEffectiveDomain();
+  if (cookieDomain) {
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax; domain=${cookieDomain}`;
+  }
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
 }
-
-// ── 페이로드 검증 ────────────────────────────────────────
 
 function isSessionUser(x: unknown): x is SessionUser {
   if (!x || typeof x !== "object") return false;
@@ -71,12 +76,22 @@ function readPayload(raw: string): StoredPayload | null {
   }
 }
 
-// ── 기존 저장소 → 쿠키 이전 (1회) ──────────────────────
-
 function migrateOldStorageOnce(): void {
   if (typeof window === "undefined") return;
   try {
-    // sessionStorage (가장 오래된 형식)
+    // 이전 쿠키 이름(snapword_user)에서 마이그레이션
+    const oldKey = "snapword_user";
+    const oldRaw = getCookie(oldKey);
+    if (oldRaw) {
+      const payload = readPayload(oldRaw);
+      if (payload && Date.now() <= payload.expiresAt) {
+        deleteCookie(oldKey);
+        saveSession(payload.user);
+        return;
+      }
+      deleteCookie(oldKey);
+    }
+
     const ssRaw = window.sessionStorage.getItem(SESSION_KEY);
     if (ssRaw) {
       const parsed = JSON.parse(ssRaw) as unknown;
@@ -88,7 +103,6 @@ function migrateOldStorageOnce(): void {
       window.sessionStorage.removeItem(SESSION_KEY);
     }
 
-    // localStorage (이전 버전)
     const lsRaw = window.localStorage.getItem(SESSION_KEY);
     if (lsRaw) {
       const payload = readPayload(lsRaw);
@@ -103,8 +117,6 @@ function migrateOldStorageOnce(): void {
     /* ignore */
   }
 }
-
-// ── 공개 API ─────────────────────────────────────────────
 
 export function loadSession(): SessionUser | null {
   if (typeof window === "undefined") return null;
@@ -137,7 +149,6 @@ export function saveSession(user: SessionUser) {
   const body: StoredPayload = { v: 1, user, expiresAt };
   setCookie(SESSION_KEY, JSON.stringify(body), SESSION_TTL_SEC);
 
-  // 이전 저장소 정리
   try {
     window.localStorage.removeItem(SESSION_KEY);
     window.sessionStorage.removeItem(SESSION_KEY);
@@ -149,9 +160,13 @@ export function saveSession(user: SessionUser) {
 export function clearSession() {
   if (typeof window === "undefined") return;
   deleteCookie(SESSION_KEY);
+  // 이전 쿠키 이름도 정리
+  deleteCookie("snapword_user");
   try {
     window.localStorage.removeItem(SESSION_KEY);
     window.sessionStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem("snapword_user");
+    window.sessionStorage.removeItem("snapword_user");
   } catch {
     /* ignore */
   }
