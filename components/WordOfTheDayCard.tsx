@@ -2,6 +2,8 @@
 
 import type { CSSProperties } from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { openFloatingChat } from "./FloatingChat";
+import { loadSession } from "@/lib/session";
 
 export interface WotdData {
   word: string;
@@ -53,22 +55,57 @@ export function WordOfTheDayCard({ data }: { data: WotdData }) {
   );
 }
 
+type DeckOption = { _id: string; name: string };
+
 function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null);
-
   const handleClose = useCallback(() => onClose(), [onClose]);
 
+  const [showDeckPicker, setShowDeckPicker] = useState(false);
+  const [decks, setDecks] = useState<DeckOption[]>([]);
+  const [decksLoading, setDecksLoading] = useState(false);
+  const [addResult, setAddResult] = useState<"ok" | "err" | null>(null);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [handleClose]);
+
+  const loadDecks = useCallback(async () => {
+    setDecksLoading(true);
+    try {
+      const s = loadSession();
+      if (!s) return;
+      const res = await fetch(`/api/vocabularies?phone=${encodeURIComponent(s.phone)}`);
+      const j = (await res.json()) as { ok: boolean; items?: DeckOption[] };
+      if (j.ok && j.items) setDecks(j.items);
+    } catch { /* ignore */ } finally { setDecksLoading(false); }
+  }, []);
+
+  const handleAddToDeck = useCallback(async (deckId: string) => {
+    const s = loadSession();
+    if (!s) return;
+    try {
+      const res = await fetch("/api/words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vocabId: deckId,
+          phone: s.phone,
+          word: data.word,
+          meaning: data.definition,
+          example: data.example || "",
+        }),
+      });
+      const j = (await res.json()) as { ok: boolean };
+      setAddResult(j.ok ? "ok" : "err");
+    } catch {
+      setAddResult("err");
+    }
+    setTimeout(() => { setAddResult(null); setShowDeckPicker(false); }, 1500);
+  }, [data]);
 
   return (
     <div
@@ -124,14 +161,73 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
             </div>
           )}
 
-          <a
-            href={data.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={modalLink}
-          >
-            Merriam-Webster에서 보기 ↗
-          </a>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a href={data.link} target="_blank" rel="noopener noreferrer" style={modalLink}>
+              Merriam-Webster에서 보기 ↗
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                handleClose();
+                openFloatingChat(
+                  `오늘의 단어 "${data.word}" (${data.partOfSpeech})에 대해 더 알려줘! 뜻: ${data.definition}`,
+                );
+              }}
+              style={askAiBtn}
+            >
+              🤖 AI에게 질문하기
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowDeckPicker(true); loadDecks(); }}
+              style={addVocabBtn}
+            >
+              📚 단어장에 추가
+            </button>
+          </div>
+
+          {/* 단어장 선택 UI */}
+          {showDeckPicker && (
+            <div style={deckPickerWrap}>
+              <div style={deckPickerHeader}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+                  단어장 선택
+                </span>
+                <button onClick={() => setShowDeckPicker(false)} style={deckPickerClose}>✕</button>
+              </div>
+              {decksLoading ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: 12 }}>
+                  불러오는 중…
+                </p>
+              ) : decks.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: 12 }}>
+                  단어장이 없습니다
+                </p>
+              ) : (
+                <div style={deckList}>
+                  {decks.map((d) => (
+                    <button
+                      key={d._id}
+                      type="button"
+                      onClick={() => handleAddToDeck(d._id)}
+                      style={deckItem}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="var(--accent)" strokeWidth="1.4" strokeLinejoin="round" />
+                      </svg>
+                      <span style={{ flex: 1, textAlign: "left", fontSize: 13, color: "var(--text-primary)" }}>{d.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {addResult === "ok" && (
+                <div style={resultMsg}>✅ 추가되었습니다!</div>
+              )}
+              {addResult === "err" && (
+                <div style={{ ...resultMsg, color: "var(--danger)" }}>❌ 추가에 실패했습니다</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -310,4 +406,83 @@ const modalLink: CSSProperties = {
   borderRadius: 10,
   border: "1px solid var(--border)",
   background: "var(--accent-subtle)",
+};
+
+const askAiBtn: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--text-primary)",
+  padding: "8px 16px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+  cursor: "pointer",
+};
+
+const addVocabBtn: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--accent)",
+  padding: "8px 16px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--accent-subtle)",
+  cursor: "pointer",
+};
+
+const deckPickerWrap: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 12,
+  border: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+  overflow: "hidden",
+};
+
+const deckPickerHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "8px 12px",
+  borderBottom: "1px solid var(--border)",
+};
+
+const deckPickerClose: CSSProperties = {
+  background: "none",
+  border: "none",
+  fontSize: 14,
+  color: "var(--text-muted)",
+  cursor: "pointer",
+  padding: "2px 6px",
+};
+
+const deckList: CSSProperties = {
+  maxHeight: 200,
+  overflowY: "auto",
+};
+
+const deckItem: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  width: "100%",
+  padding: "10px 12px",
+  border: "none",
+  borderBottom: "1px solid var(--border)",
+  background: "transparent",
+  cursor: "pointer",
+  transition: "background 0.1s",
+};
+
+const resultMsg: CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--accent)",
+  textAlign: "center",
+  padding: "10px 12px",
 };

@@ -2,10 +2,12 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef } from "react";
+import { openFloatingChat } from "./FloatingChat";
 
 export interface ModalFeedData {
   id: string;
   label: string;
+  category?: string;
   item: {
     title: string;
     snippet: string;
@@ -111,14 +113,35 @@ export function RssDetailModal({
             {renderContent(feed.item.fullContent)}
           </div>
 
-          <a
-            href={feed.item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={linkBtnStyle}
-          >
-            원문 보기 ↗
-          </a>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a
+              href={feed.item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={linkBtnStyle}
+            >
+              원문 보기 ↗
+            </a>
+            {!/^(vocabulary|exercises)$/i.test(feed.category ?? "") && (
+              <button
+                type="button"
+                onClick={() => {
+                  const plain = feed.item!.fullContent
+                    .replace(/<[^>]+>/g, "")
+                    .replace(/&[a-z]+;/gi, " ")
+                    .replace(/\s{2,}/g, " ")
+                    .trim();
+                  onClose();
+                  openFloatingChat(
+                    `아래 영어 글을 한국어로 번역해줘. 초등학생이 이해할 수 있도록 쉬운 표현으로 번역해줘.\n\n제목: ${feed.item!.title}\n\n${plain}`,
+                  );
+                }}
+                style={askAiBtnStyle}
+              >
+                🤖 번역 요청하기
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -338,4 +361,18 @@ const linkBtnStyle: CSSProperties = {
   border: "1px solid var(--border)",
   background: "var(--accent-subtle)",
   transition: "background 0.15s",
+};
+
+const askAiBtnStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--text-primary)",
+  padding: "8px 16px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+  cursor: "pointer",
 };

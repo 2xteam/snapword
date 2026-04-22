@@ -111,6 +111,7 @@ export function EgArticleList({
           feed={{
             id: "eg",
             label: "English Grammar",
+            category: selected.category,
             item: {
               title: selected.title,
               snippet: selected.snippet,

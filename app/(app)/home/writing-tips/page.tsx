@@ -62,6 +62,7 @@ export default function WritingTipsPage() {
     ? {
         id: "eg",
         label: "English Grammar",
+        category: selected.category,
         item: {
           title: selected.title,
           snippet: selected.snippet,
