@@ -20,6 +20,7 @@ export default function VocabWordsEditPage() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgType, setMsgType] = useState<"ok" | "warn" | "err">("ok");
 
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [dialogRow, setDialogRow] = useState<WordRow>(emptyVocabularyPayload());
@@ -72,8 +73,9 @@ export default function VocabWordsEditPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ vocabId, phone: session.phone, word: dialogRow.word.trim(), meaning: dialogRow.meaning, example: dialogRow.example, synonyms: dialogRow.synonyms, antonyms: dialogRow.antonyms }),
       });
-      const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "저장 실패"); return; }
+      const json = (await res.json()) as { ok: boolean; duplicate?: boolean; message?: string; error?: string };
+      if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.message ?? json.error ?? "저장 실패"); return; }
+      if (json.duplicate) { setMsgType("warn"); setMsg(json.message ?? "이미 단어장에 있는 단어입니다."); return; }
       closeDialog();
       await load();
     } finally {
@@ -91,10 +93,14 @@ export default function VocabWordsEditPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ vocabId, phone: session.phone, words: visionRows.map(({ _id: _, ...w }) => w) }),
       });
-      const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "저장 실패"); return; }
+      const json = (await res.json()) as { ok: boolean; error?: string; count?: number; skipped?: string[] };
+      if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.error ?? "저장 실패"); return; }
       closeDialog();
       await load();
+      if (json.skipped && json.skipped.length > 0) {
+        setMsgType("warn");
+        setMsg(`중복 단어 ${json.skipped.length}개 제외: ${json.skipped.join(", ")}`);
+      }
     } finally {
       setBusy(null);
     }
@@ -122,13 +128,13 @@ export default function VocabWordsEditPage() {
         error?: string;
       };
       if (!res.ok || !json.ok || !json.words?.length) {
-        setMsg(json.error ?? "Vision 실패");
+        setMsgType("err"); setMsg(json.error ?? "Vision 실패");
         return;
       }
       setVisionRows(json.words.map((w) => normalizeVocabularyPayload(w)));
       setDialogMode("vision");
     } catch {
-      setMsg("네트워크 오류");
+      setMsgType("err"); setMsg("네트워크 오류");
     } finally {
       setBusy(null);
     }
@@ -148,7 +154,7 @@ export default function VocabWordsEditPage() {
         { method: "DELETE" },
       );
       const json = (await res.json()) as { ok: boolean };
-      if (!res.ok || !json.ok) { setMsg("삭제 실패"); setDialogMode(null); setDeleteTarget(null); return; }
+      if (!res.ok || !json.ok) { setMsgType("err"); setMsg("삭제 실패"); setDialogMode(null); setDeleteTarget(null); return; }
     }
     setRows((prev) => prev.filter((_, j) => j !== deleteTarget));
     setDialogMode(null);
@@ -158,7 +164,7 @@ export default function VocabWordsEditPage() {
   const saveRow = async (i: number) => {
     const r = rows[i];
     if (!session || !r._id) return;
-    if (!r.word.trim() || !r.meaning.trim()) { setMsg("단어와 설명은 필수입니다."); return; }
+    if (!r.word.trim() || !r.meaning.trim()) { setMsgType("warn"); setMsg("단어와 설명은 필수입니다."); return; }
     setBusy(`save-${i}`);
     setMsg(null);
     try {
@@ -168,8 +174,8 @@ export default function VocabWordsEditPage() {
         body: JSON.stringify({ phone: session.phone, word: r.word, meaning: r.meaning, example: r.example, synonyms: r.synonyms, antonyms: r.antonyms }),
       });
       const json = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
-      setMsg("저장되었습니다.");
+      if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.error ?? "수정 실패"); return; }
+      setMsgType("ok"); setMsg("저장되었습니다.");
     } finally {
       setBusy(null);
     }
@@ -205,7 +211,7 @@ export default function VocabWordsEditPage() {
         </label>
       </div>
 
-      {msg ? <p style={{ fontSize: 13, color: "var(--success)" }}>{msg}</p> : null}
+      {msg ? <p style={{ fontSize: 13, color: msgType === "ok" ? "var(--success)" : msgType === "warn" ? "var(--text-secondary)" : "var(--danger)" }}>{msg}</p> : null}
 
       <div style={{ display: "grid", gap: "1rem" }}>
         {!loaded ? (

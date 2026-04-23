@@ -73,8 +73,8 @@ export default function HomePage() {
       {/* Word of the Day */}
       {rssLoading ? (
         <section>
-          <h2 style={{ margin: "0 0 0.6rem", fontSize: "1rem", color: "var(--text-primary)" }}>오늘의 Word!</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "1rem 1.1rem", borderRadius: 16, background: "var(--bg-elevated)", animation: "pulse 1.5s ease-in-out infinite" }}>
+          <h2 style={sectionTitle}>오늘의 Word!</h2>
+          <div style={wotdSkeletonBox}>
             <div style={{ width: 100, height: 18, borderRadius: 6, background: "var(--border)" }} />
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ width: "80%", height: 12, borderRadius: 4, background: "var(--border)" }} />
@@ -87,12 +87,16 @@ export default function HomePage() {
       ) : null}
 
       {!loaded ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩중입니다…</p>
+        <>
+          <ThumbRowSkeleton title="최근 단어장" />
+          <ThumbRowSkeleton title="최근 폴더" />
+          <ReviewSkeleton />
+        </>
       ) : (
         <>
           {/* 최근 단어장 */}
           <section style={{ minWidth: 0, overflow: "hidden" }}>
-            <h2 style={{ margin: "0 0 0.6rem", fontSize: "1rem", color: "var(--text-primary)" }}>최근 단어장</h2>
+            <h2 style={sectionTitle}>최근 단어장</h2>
             {decks.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>단어장이 없습니다.</p>
             ) : (
@@ -109,7 +113,7 @@ export default function HomePage() {
 
           {/* 최근 폴더 */}
           <section style={{ minWidth: 0, overflow: "hidden" }}>
-            <h2 style={{ margin: "0 0 0.6rem", fontSize: "1rem", color: "var(--text-primary)" }}>최근 폴더</h2>
+            <h2 style={sectionTitle}>최근 폴더</h2>
             {folders.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>폴더가 없습니다.</p>
             ) : (
@@ -158,12 +162,80 @@ export default function HomePage() {
           </section>
 
           {/* 최하단: English Grammar */}
-          {egItems.length > 0 && (
+          {rssLoading ? (
+            <EgCarouselSkeleton />
+          ) : egItems.length > 0 ? (
             <EgArticleList items={egItems} limit={5} />
-          )}
+          ) : null}
         </>
       )}
     </div>
+  );
+}
+
+function ThumbRowSkeleton({ title }: { title: string }) {
+  return (
+    <section style={{ minWidth: 0, overflow: "hidden" }}>
+      <h2 style={sectionTitle}>{title}</h2>
+      <div className="home-scroll-row" style={{ ...scrollRow, animation: "pulse 1.5s ease-in-out infinite" }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{ ...thumbCard, border: "1px solid var(--border)", background: "var(--bg-elevated)", pointerEvents: "none" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--border)" }} />
+            <div style={{ width: "70%", height: 10, borderRadius: 4, background: "var(--border)" }} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReviewSkeleton() {
+  return (
+    <section>
+      <h2 style={{ ...sectionTitle, marginBottom: "0.6rem" }}>복습</h2>
+      <div style={{ ...reviewBtn, animation: "pulse 1.5s ease-in-out infinite", pointerEvents: "none" }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--border)", flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ width: "55%", height: 14, borderRadius: 4, background: "var(--border)" }} />
+          <div style={{ width: "85%", height: 11, borderRadius: 4, background: "var(--border)" }} />
+        </div>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: "var(--border)", flexShrink: 0 }} />
+      </div>
+    </section>
+  );
+}
+
+function EgCarouselSkeleton() {
+  return (
+    <section style={{ minWidth: 0, overflow: "hidden" }}>
+      <h2 style={sectionTitle}>더 공부해 볼까?</h2>
+      <div className="home-scroll-row" style={{ ...scrollRow, maxWidth: "100%", animation: "pulse 1.5s ease-in-out infinite" }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            style={{
+              flexShrink: 0,
+              width: 200,
+              minWidth: 200,
+              height: 140,
+              borderRadius: 14,
+              border: "1px solid var(--border)",
+              background: "var(--bg-elevated)",
+              padding: "0.75rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ width: 48, height: 14, borderRadius: 6, background: "var(--border)" }} />
+            <div style={{ width: "90%", height: 12, borderRadius: 4, background: "var(--border)" }} />
+            <div style={{ width: "75%", height: 12, borderRadius: 4, background: "var(--border)" }} />
+            <div style={{ flex: 1 }} />
+            <div style={{ width: "40%", height: 10, borderRadius: 4, background: "var(--border)" }} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -184,6 +256,22 @@ function FileIcon() {
   );
 }
 
+const sectionTitle: CSSProperties = {
+  margin: "0 0 0.6rem",
+  fontSize: "1rem",
+  color: "var(--text-primary)",
+};
+
+const wotdSkeletonBox: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 14,
+  width: "100%",
+  padding: "1rem 1.1rem",
+  borderRadius: 16,
+  background: "var(--bg-elevated)",
+  animation: "pulse 1.5s ease-in-out infinite",
+};
 
 const scrollRow: CSSProperties = {
   display: "flex",

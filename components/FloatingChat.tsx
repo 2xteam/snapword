@@ -10,9 +10,9 @@ type Msg = { _id: string; role: string; content: string; createdAt: string };
 
 const DRAFT_ID = "__draft__";
 
-export function openFloatingChat(message: string) {
+export function openFloatingChat(message: string, cacheWord?: string) {
   window.dispatchEvent(
-    new CustomEvent("floating-chat-send", { detail: { message } }),
+    new CustomEvent("floating-chat-send", { detail: { message, cacheWord } }),
   );
 }
 
@@ -27,6 +27,7 @@ export function FloatingChat() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const pendingMsg = useRef<string | null>(null);
+  const cacheWord = useRef<string | null>(null);
 
   useEffect(() => {
     const s = loadSession();
@@ -169,6 +170,23 @@ export function FloatingChat() {
       }
       await fetchMessages(session, threadId);
       await loadThreads(session);
+
+      if (cacheWord.current) {
+        const wordToCache = cacheWord.current;
+        const promptToCache = text;
+        cacheWord.current = null;
+        setMessages((msgs) => {
+          const last = [...msgs].reverse().find((m) => m.role === "assistant" && !m._id.startsWith("local-") && !m._id.startsWith("err-"));
+          if (last?.content) {
+            fetch("/api/ai-cache", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ word: wordToCache, prompt: promptToCache, answer: last.content }),
+            }).catch(() => {});
+          }
+          return msgs;
+        });
+      }
     } catch {
       setMessages((m) =>
         m.filter((x) => x._id !== pendingUserId && x._id !== pendingAiId).concat([
@@ -186,9 +204,10 @@ export function FloatingChat() {
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const msg = (e as CustomEvent<{ message: string }>).detail.message;
-      if (!msg) return;
-      pendingMsg.current = msg;
+      const detail = (e as CustomEvent<{ message: string; cacheWord?: string }>).detail;
+      if (!detail.message) return;
+      pendingMsg.current = detail.message;
+      cacheWord.current = detail.cacheWord ?? null;
       setActive(DRAFT_ID);
       setMessages([]);
       setInput("");

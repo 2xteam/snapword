@@ -2,7 +2,9 @@
 
 import type { CSSProperties } from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import Markdown from "react-markdown";
 import { openFloatingChat } from "./FloatingChat";
+import { showToast } from "./Toast";
 import { loadSession } from "@/lib/session";
 
 export interface WotdData {
@@ -64,7 +66,10 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
   const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [decks, setDecks] = useState<DeckOption[]>([]);
   const [decksLoading, setDecksLoading] = useState(false);
-  const [addResult, setAddResult] = useState<"ok" | "err" | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  const [cachedAnswer, setCachedAnswer] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
@@ -84,9 +89,10 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
     } catch { /* ignore */ } finally { setDecksLoading(false); }
   }, []);
 
-  const handleAddToDeck = useCallback(async (deckId: string) => {
+  const handleAddToDeck = useCallback(async (deckId: string, deckName: string) => {
     const s = loadSession();
     if (!s) return;
+    setAdding(true);
     try {
       const res = await fetch("/api/words", {
         method: "POST",
@@ -99,12 +105,19 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
           example: data.example || "",
         }),
       });
-      const j = (await res.json()) as { ok: boolean };
-      setAddResult(j.ok ? "ok" : "err");
+      const j = (await res.json()) as { ok: boolean; duplicate?: boolean; message?: string };
+      if (j.ok && j.duplicate) {
+        showToast(j.message ?? "이미 단어장에 있는 단어입니다", "warn");
+      } else if (j.ok) {
+        showToast(`"${deckName}"에 추가되었습니다`);
+      } else {
+        showToast("단어 추가에 실패했습니다", "err");
+      }
     } catch {
-      setAddResult("err");
+      showToast("네트워크 오류로 추가에 실패했습니다", "err");
     }
-    setTimeout(() => { setAddResult(null); setShowDeckPicker(false); }, 1500);
+    setAdding(false);
+    setShowDeckPicker(false);
   }, [data]);
 
   return (
@@ -167,15 +180,27 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
             </a>
             <button
               type="button"
-              onClick={() => {
+              disabled={aiLoading}
+              onClick={async () => {
+                setAiLoading(true);
+                try {
+                  const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(data.word)}`);
+                  const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
+                  if (j.ok && j.hit && j.answer) {
+                    setCachedAnswer(j.answer);
+                    setAiLoading(false);
+                    return;
+                  }
+                } catch { /* 캐시 조회 실패 시 채팅으로 fallback */ }
+                setAiLoading(false);
+                const prompt = `오늘의 단어 "${data.word}" (${data.partOfSpeech})에 대해 더 알려줘! 뜻: ${data.definition}`;
                 handleClose();
-                openFloatingChat(
-                  `오늘의 단어 "${data.word}" (${data.partOfSpeech})에 대해 더 알려줘! 뜻: ${data.definition}`,
-                );
+                openFloatingChat(prompt, data.word);
               }}
-              style={askAiBtn}
+              style={{ ...askAiBtn, opacity: aiLoading ? 0.6 : 1 }}
             >
-              🤖 AI에게 질문하기
+              <RobotIcon />
+              {aiLoading ? "확인 중…" : "AI에게 질문"}
             </button>
             <button
               type="button"
@@ -185,6 +210,21 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
               📚 단어장에 추가
             </button>
           </div>
+
+          {/* 캐시된 AI 답변 */}
+          {cachedAnswer && (
+            <div style={cachedAnswerWrap}>
+              <div style={cachedAnswerHeader}>
+                <span style={{ fontSize: 14 }}>🤖</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>AI 답변</span>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => setCachedAnswer(null)} style={cachedAnswerClose}>✕</button>
+              </div>
+              <div className="chat-md" style={cachedAnswerBody}>
+                <Markdown>{cachedAnswer}</Markdown>
+              </div>
+            </div>
+          )}
 
           {/* 단어장 선택 UI */}
           {showDeckPicker && (
@@ -209,8 +249,9 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
                     <button
                       key={d._id}
                       type="button"
-                      onClick={() => handleAddToDeck(d._id)}
-                      style={deckItem}
+                      disabled={adding}
+                      onClick={() => handleAddToDeck(d._id, d.name)}
+                      style={{ ...deckItem, opacity: adding ? 0.5 : 1 }}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="var(--accent)" strokeWidth="1.4" strokeLinejoin="round" />
@@ -219,12 +260,6 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-              )}
-              {addResult === "ok" && (
-                <div style={resultMsg}>✅ 추가되었습니다!</div>
-              )}
-              {addResult === "err" && (
-                <div style={{ ...resultMsg, color: "var(--danger)" }}>❌ 추가에 실패했습니다</div>
               )}
             </div>
           )}
@@ -397,41 +432,41 @@ const modalBodyText: CSSProperties = {
 const modalLink: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
+  gap: 5,
   fontSize: 13,
   fontWeight: 600,
   color: "var(--accent)",
   textDecoration: "none",
   padding: "8px 16px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
+  borderRadius: 999,
+  border: "none",
   background: "var(--accent-subtle)",
 };
 
 const askAiBtn: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
+  gap: 5,
   fontSize: 13,
   fontWeight: 600,
-  color: "var(--text-primary)",
+  color: "var(--chat-fab-fg)",
   padding: "8px 16px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--bg-elevated)",
+  borderRadius: 999,
+  border: "none",
+  background: "var(--chat-fab-bg)",
   cursor: "pointer",
 };
 
 const addVocabBtn: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
+  gap: 5,
   fontSize: 13,
   fontWeight: 600,
   color: "var(--accent)",
   padding: "8px 16px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
+  borderRadius: 999,
+  border: "none",
   background: "var(--accent-subtle)",
   cursor: "pointer",
 };
@@ -479,10 +514,50 @@ const deckItem: CSSProperties = {
   transition: "background 0.1s",
 };
 
-const resultMsg: CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: "var(--accent)",
-  textAlign: "center",
-  padding: "10px 12px",
+
+const cachedAnswerWrap: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 12,
+  border: "1px solid var(--accent)",
+  background: "var(--accent-subtle)",
+  overflow: "hidden",
 };
+
+const cachedAnswerHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 12px",
+  borderBottom: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+};
+
+const cachedAnswerClose: CSSProperties = {
+  background: "none",
+  border: "none",
+  fontSize: 14,
+  color: "var(--text-muted)",
+  cursor: "pointer",
+  padding: "2px 6px",
+};
+
+const cachedAnswerBody: CSSProperties = {
+  padding: "10px 14px",
+  fontSize: 13,
+  lineHeight: 1.7,
+  color: "var(--text-secondary)",
+  maxHeight: 300,
+  overflowY: "auto",
+};
+
+function RobotIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+      <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}

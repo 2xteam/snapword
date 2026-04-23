@@ -1,7 +1,9 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
+import { normalizeAiCacheKey } from "@/lib/aiCacheKey";
 import { openFloatingChat } from "./FloatingChat";
 
 export interface ModalFeedData {
@@ -33,6 +35,8 @@ export function RssDetailModal({
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const icon = CARD_ICONS[feed.id] ?? "📰";
+  const [cachedAnswer, setCachedAnswer] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -125,23 +129,52 @@ export function RssDetailModal({
             {!/^(vocabulary|exercises)$/i.test(feed.category ?? "") && (
               <button
                 type="button"
-                onClick={() => {
+                disabled={aiLoading}
+                onClick={async () => {
+                  const title = feed.item!.title;
+                  const translationCacheKey = normalizeAiCacheKey(title);
+                  setAiLoading(true);
+                  try {
+                    const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(translationCacheKey)}`);
+                    const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
+                    if (j.ok && j.hit && j.answer) {
+                      setCachedAnswer(j.answer);
+                      setAiLoading(false);
+                      return;
+                    }
+                  } catch { /* 캐시 조회 실패 시 채팅으로 fallback */ }
+                  setAiLoading(false);
                   const plain = feed.item!.fullContent
                     .replace(/<[^>]+>/g, "")
                     .replace(/&[a-z]+;/gi, " ")
                     .replace(/\s{2,}/g, " ")
                     .trim();
+                  const prompt = `아래 영어 글을 한국어로 번역해줘. 쉽게 이해할 수 있는 표현으로 번역해줘.\n\n제목: ${title}\n\n${plain}`;
                   onClose();
-                  openFloatingChat(
-                    `아래 영어 글을 한국어로 번역해줘. 초등학생이 이해할 수 있도록 쉬운 표현으로 번역해줘.\n\n제목: ${feed.item!.title}\n\n${plain}`,
-                  );
+                  openFloatingChat(prompt, translationCacheKey);
                 }}
-                style={askAiBtnStyle}
+                style={{ ...askAiBtnStyle, opacity: aiLoading ? 0.6 : 1 }}
               >
-                🤖 번역 요청하기
+                <RobotSvg />
+                {aiLoading ? "확인 중…" : "번역 요청하기"}
               </button>
             )}
           </div>
+
+          {/* 캐시된 AI 답변 */}
+          {cachedAnswer && (
+            <div style={rssAiAnswerWrap}>
+              <div style={rssAiAnswerHeader}>
+                <span style={{ fontSize: 14 }}>🤖</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>AI 번역</span>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => setCachedAnswer(null)} style={rssAiAnswerClose}>✕</button>
+              </div>
+              <div className="chat-md" style={rssAiAnswerBody}>
+                <Markdown>{cachedAnswer}</Markdown>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -351,28 +384,74 @@ const bodyContentStyle: CSSProperties = {
 const linkBtnStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
+  gap: 5,
   fontSize: 13,
   fontWeight: 600,
   color: "var(--accent)",
   textDecoration: "none",
   padding: "8px 16px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
+  borderRadius: 999,
+  border: "none",
   background: "var(--accent-subtle)",
-  transition: "background 0.15s",
 };
 
 const askAiBtnStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
+  gap: 5,
   fontSize: 13,
   fontWeight: 600,
-  color: "var(--text-primary)",
+  color: "var(--chat-fab-fg)",
   padding: "8px 16px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--bg-elevated)",
+  borderRadius: 999,
+  border: "none",
+  background: "var(--chat-fab-bg)",
   cursor: "pointer",
 };
+
+const rssAiAnswerWrap: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 12,
+  border: "1px solid var(--accent)",
+  background: "var(--accent-subtle)",
+  overflow: "hidden",
+};
+
+const rssAiAnswerHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 12px",
+  borderBottom: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+};
+
+const rssAiAnswerClose: CSSProperties = {
+  background: "none",
+  border: "none",
+  fontSize: 14,
+  color: "var(--text-muted)",
+  cursor: "pointer",
+  padding: "2px 6px",
+};
+
+const rssAiAnswerBody: CSSProperties = {
+  padding: "10px 14px",
+  fontSize: 13,
+  lineHeight: 1.7,
+  color: "var(--text-secondary)",
+  maxHeight: 300,
+  overflowY: "auto",
+};
+
+function RobotSvg() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+      <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}

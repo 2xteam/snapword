@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
 import { useDragScroll } from "@/lib/useDragScroll";
@@ -34,6 +35,8 @@ export default function StudyPage() {
   const [testStats, setTestStats] = useState<Record<string, TestWordStat>>({});
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
+  const [aiCache, setAiCache] = useState<Record<string, string>>({});
+  const [aiLoading, setAiLoading] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useDragScroll();
@@ -204,8 +207,23 @@ export default function StudyPage() {
                         </a>
                         <button
                           type="button"
-                          onClick={() => openFloatingChat(`${word.word} 에 대해서 더 자세히 설명해줘`)}
-                          style={aiBtnStyle}
+                          disabled={aiLoading === word._id}
+                          onClick={async () => {
+                            setAiLoading(word._id);
+                            try {
+                              const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}`);
+                              const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
+                              if (j.ok && j.hit && j.answer) {
+                                setAiCache((prev) => ({ ...prev, [word._id]: j.answer! }));
+                                setAiLoading(null);
+                                return;
+                              }
+                            } catch { /* fallback */ }
+                            setAiLoading(null);
+                            const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
+                            openFloatingChat(prompt, word.word);
+                          }}
+                          style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                             <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
@@ -214,9 +232,22 @@ export default function StudyPage() {
                             <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                             <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
                           </svg>
-                          AI에게 질문
+                          {aiLoading === word._id ? "확인 중…" : "AI에게 질문"}
                         </button>
                       </div>
+                      {aiCache[word._id] && (
+                        <div style={aiAnswerWrap}>
+                          <div style={aiAnswerHeader}>
+                            <span style={{ fontSize: 14 }}>🤖</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>AI 답변</span>
+                            <div style={{ flex: 1 }} />
+                            <button onClick={() => setAiCache((prev) => { const n = { ...prev }; delete n[word._id]; return n; })} style={aiAnswerCloseBtn}>✕</button>
+                          </div>
+                          <div className="chat-md" style={aiAnswerBody}>
+                            <Markdown>{aiCache[word._id]}</Markdown>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -288,4 +319,39 @@ const aiBtnStyle: CSSProperties = {
   fontSize: 13,
   border: "none",
   cursor: "pointer",
+};
+
+const aiAnswerWrap: CSSProperties = {
+  marginTop: 12,
+  borderRadius: 12,
+  border: "1px solid var(--accent)",
+  background: "var(--accent-subtle)",
+  overflow: "hidden",
+};
+
+const aiAnswerHeader: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 12px",
+  borderBottom: "1px solid var(--border)",
+  background: "var(--bg-elevated)",
+};
+
+const aiAnswerCloseBtn: CSSProperties = {
+  background: "none",
+  border: "none",
+  fontSize: 14,
+  color: "var(--text-muted)",
+  cursor: "pointer",
+  padding: "2px 6px",
+};
+
+const aiAnswerBody: CSSProperties = {
+  padding: "10px 14px",
+  fontSize: 13,
+  lineHeight: 1.7,
+  color: "var(--text-secondary)",
+  maxHeight: 250,
+  overflowY: "auto",
 };

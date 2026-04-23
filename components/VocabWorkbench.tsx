@@ -175,6 +175,7 @@ export function VocabWorkbench() {
       const json = (await res.json()) as {
         ok: boolean;
         count?: number;
+        skipped?: string[];
         error?: string;
       };
 
@@ -183,9 +184,11 @@ export function VocabWorkbench() {
         return;
       }
 
-      setMessage(
-        `words 컬렉션에 ${json.count ?? toSave.length}개 단어를 저장했습니다.`,
-      );
+      const saved = json.count ?? toSave.length;
+      const skippedMsg = json.skipped && json.skipped.length > 0
+        ? ` (중복 ${json.skipped.length}개 제외: ${json.skipped.join(", ")})`
+        : "";
+      setMessage(`words 컬렉션에 ${saved}개 단어를 저장했습니다.${skippedMsg}`);
     } catch {
       setMessage("저장 요청에 실패했습니다. 네트워크를 확인해 주세요.");
     } finally {

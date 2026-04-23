@@ -102,20 +102,36 @@ export async function POST(req: Request) {
       }
 
       const vid = new mongoose.Types.ObjectId(batch.vocabId);
+
+      const existingWords = await Word.find({ vocabId: vid })
+        .select("word")
+        .lean()
+        .exec();
+      const existingSet = new Set(
+        existingWords.map((w) => (w.word as string).trim().toLowerCase()),
+      );
+
       const ids: string[] = [];
+      const skipped: string[] = [];
       for (const w of batch.words) {
+        const trimmed = w.word.trim();
+        if (existingSet.has(trimmed.toLowerCase())) {
+          skipped.push(trimmed);
+          continue;
+        }
         const doc = await Word.create({
           vocabId: vid,
-          word: w.word.trim(),
+          word: trimmed,
           meaning: w.meaning,
           example: w.example,
           synonyms: w.synonyms,
           antonyms: w.antonyms,
         });
         ids.push(String(doc._id));
+        existingSet.add(trimmed.toLowerCase());
       }
 
-      return NextResponse.json({ ok: true, ids, count: ids.length });
+      return NextResponse.json({ ok: true, ids, count: ids.length, skipped });
     }
 
     const payload = validateWordPayload(body);
@@ -149,9 +165,27 @@ export async function POST(req: Request) {
       );
     }
 
+    const vid = new mongoose.Types.ObjectId(payload.vocabId);
+    const trimmedWord = payload.word.trim();
+
+    const duplicate = await Word.findOne({
+      vocabId: vid,
+      word: { $regex: new RegExp(`^${trimmedWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    })
+      .lean()
+      .exec();
+
+    if (duplicate) {
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        message: `"${trimmedWord}" 단어가 이미 단어장에 존재합니다.`,
+      });
+    }
+
     const doc = await Word.create({
-      vocabId: new mongoose.Types.ObjectId(payload.vocabId),
-      word: payload.word.trim(),
+      vocabId: vid,
+      word: trimmedWord,
       meaning: payload.meaning,
       example: payload.example,
       synonyms: payload.synonyms,
