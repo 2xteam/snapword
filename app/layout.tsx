@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "SnapWord",
   description: "OpenAI로 교재·텍스트에서 단어를 추출·정리하는 SnapWord",
   icons: {
-    icon: "/icon.png",
+    icon: "/favicon.png",
     apple: "/icon.png",
   },
   manifest: "/manifest.webmanifest",

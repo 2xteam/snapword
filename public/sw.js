@@ -1,5 +1,5 @@
-const CACHE_NAME = "snapword-v1";
-const PRECACHE = ["/icon.png"];
+const CACHE_NAME = "snapword-v2";
+const PRECACHE = ["/icon.png", "/favicon.png", "/site-title-icon.png", "/snapnote-link-icon.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
