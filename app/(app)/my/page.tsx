@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/components/ThemeProvider";
 import { PRESET_THEMES, type ThemeCustomColor, type ThemeId } from "@/lib/theme";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { InstallButton } from "@/components/InstallButton";
 
 export default function MyPage() {
   const router = useRouter();
@@ -222,6 +223,9 @@ export default function MyPage() {
             </button>
           </div>
       </div>
+
+      {/* 바로가기 추가 */}
+      <InstallButton />
     </div>
   );
 }

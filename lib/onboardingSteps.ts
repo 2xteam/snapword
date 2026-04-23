@@ -46,6 +46,11 @@ const PAGE_GUIDES: PageGuide[] = [
         description: "오른쪽 상단의 메뉴 버튼을 눌러 폴더, 단어장 등 다른 페이지로 이동할 수 있어요.",
       },
       {
+        selector: "[data-guide='install-btn']",
+        title: "홈 화면에 추가",
+        description: "이 버튼을 눌러 SnapWord를 홈 화면에 추가하면, 앱처럼 바로 실행할 수 있어요!",
+      },
+      {
         selector: "[data-guide='chat-fab']",
         title: "AI 채팅",
         description: "궁금한 점이 있으면 이 버튼을 눌러 AI에게 질문할 수 있어요!",

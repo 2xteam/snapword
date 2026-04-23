@@ -8,6 +8,7 @@ import { loadSession, type SessionUser } from "@/lib/session";
 import { useDragScroll } from "@/lib/useDragScroll";
 import { WordOfTheDayCard, type WotdData } from "@/components/WordOfTheDayCard";
 import { EgArticleList, type EgItem } from "@/components/DwtArticleList";
+import { InstallButton } from "@/components/InstallButton";
 
 type FolderRow = { _id: string; name: string };
 type DeckRow = { _id: string; name: string };
@@ -167,6 +168,8 @@ export default function HomePage() {
           ) : egItems.length > 0 ? (
             <EgArticleList items={egItems} limit={5} />
           ) : null}
+
+          <InstallButton />
         </>
       )}
     </div>
