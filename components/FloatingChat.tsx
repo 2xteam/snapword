@@ -251,6 +251,7 @@ export function FloatingChat() {
           onClick={() => setOpen(true)}
           aria-label="채팅 열기"
           style={fabStyle}
+          data-guide="chat-fab"
         >
           <RobotIcon />
         </button>

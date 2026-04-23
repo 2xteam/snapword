@@ -95,7 +95,7 @@ export default function HomePage() {
       ) : (
         <>
           {/* 최근 단어장 */}
-          <section style={{ minWidth: 0, overflow: "hidden" }}>
+          <section data-guide="deck-section" style={{ minWidth: 0, overflow: "hidden" }}>
             <h2 style={sectionTitle}>최근 단어장</h2>
             {decks.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>단어장이 없습니다.</p>
@@ -112,7 +112,7 @@ export default function HomePage() {
           </section>
 
           {/* 최근 폴더 */}
-          <section style={{ minWidth: 0, overflow: "hidden" }}>
+          <section data-guide="folder-section" style={{ minWidth: 0, overflow: "hidden" }}>
             <h2 style={sectionTitle}>최근 폴더</h2>
             {folders.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: 13 }}>폴더가 없습니다.</p>
@@ -129,7 +129,7 @@ export default function HomePage() {
           </section>
 
           {/* 많이 틀린 단어 복습 */}
-          <section>
+          <section data-guide="review-section">
             <div style={{ display: "flex", alignItems: "center", marginBottom: "0.6rem" }}>
               <h2 style={{ margin: 0, fontSize: "1rem", color: "var(--text-primary)", flex: 1 }}>복습</h2>
             </div>

@@ -96,6 +96,7 @@ export function TopNav() {
             className={`topnav-hamburger ${open ? "topnav-hamburger--open" : ""}`}
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+            data-guide="hamburger-btn"
           >
             <span className="topnav-hamburger-line topnav-hamburger-line--1" />
             <span className="topnav-hamburger-line topnav-hamburger-line--2" />
@@ -113,6 +114,7 @@ export function TopNav() {
                 className="topnav-menu-link"
                 data-active={active}
                 onClick={() => setOpen(false)}
+                {...(href === "/folders" ? { "data-guide": "menu-folders" } : {})}
               >
                 {label}
               </Link>

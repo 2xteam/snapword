@@ -2,6 +2,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { TopNav } from "@/components/TopNav";
 import { FloatingChat } from "@/components/FloatingChat";
 import { ToastContainer } from "@/components/Toast";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
 
 export default function AppShellLayout({
   children,
@@ -21,6 +22,7 @@ export default function AppShellLayout({
         </div>
         <FloatingChat />
         <ToastContainer />
+        <OnboardingGuide />
       </div>
     </ThemeProvider>
   );

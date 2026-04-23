@@ -90,10 +90,12 @@ export default function FolderInsidePage() {
         const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
+        setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "createDeck") {
         const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, phone: session.phone, name: dialogName.trim(), description: "", createdBy: session.id }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
+        setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "renameFolder") {
         const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
@@ -146,7 +148,7 @@ export default function FolderInsidePage() {
         <button type="button" onClick={() => openDialog({ type: "createFolder" })} style={btnSmall} title="폴더 생성">
           <FolderPlusIcon />
         </button>
-        <button type="button" onClick={() => openDialog({ type: "createDeck" })} style={btnSmall} title="단어장 생성">
+        <button type="button" onClick={() => openDialog({ type: "createDeck" })} style={btnSmall} title="단어장 생성" data-guide="create-deck-btn">
           <FilePlusIcon />
         </button>
       </div>
@@ -161,11 +163,12 @@ export default function FolderInsidePage() {
             비어 있습니다. 폴더나 단어장을 만들어 보세요.
           </li>
         ) : (
-          items.map((it) => (
+          items.map((it, itIdx) => (
             <li key={it.id} style={{ display: "flex", alignItems: "center" }}>
               <Link
                 href={it.kind === "folder" ? `/folders/${it.id}` : `/vocab/${it.id}`}
                 style={explorerRow}
+                {...(itIdx === 0 ? { "data-guide": "first-deck" } : {})}
               >
                 {it.kind === "folder" ? <FolderIcon /> : <FileIcon />}
                 <span style={{ flex: 1 }}>{it.name}</span>

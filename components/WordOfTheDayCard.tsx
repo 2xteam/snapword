@@ -30,7 +30,7 @@ export function WordOfTheDayCard({ data }: { data: WotdData }) {
 
   return (
     <>
-      <section>
+      <section data-guide="wotd-section">
         <h2 style={sectionTitle}>오늘의 Word!</h2>
         <button type="button" onClick={() => setOpen(true)} style={card}>
           <div style={cardLeft}>

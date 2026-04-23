@@ -59,10 +59,10 @@ export default function VocabHubPage() {
           margin: "0 auto",
         }}
       >
-        <HubButton href={`${base}/words`} label="단어 추가·편집" sub="수동 / 사진" icon={<EditIcon />} />
-        <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} />
-        <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} />
-        <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} />
+        <HubButton href={`${base}/words`} label="단어 추가·편집" sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
+        <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} guide="hub-study" />
+        <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} guide="hub-test" />
+        <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} guide="hub-score" />
       </div>
     </div>
   );
@@ -81,10 +81,11 @@ const backBtnStyle: import("react").CSSProperties = {
   textDecoration: "none",
 };
 
-function HubButton({ href, label, sub, icon }: { href: string; label: string; sub: string; icon: React.ReactNode }) {
+function HubButton({ href, label, sub, icon, guide }: { href: string; label: string; sub: string; icon: React.ReactNode; guide?: string }) {
   return (
     <Link
       href={href}
+      {...(guide ? { "data-guide": guide } : {})}
       style={{
         display: "flex",
         flexDirection: "column",

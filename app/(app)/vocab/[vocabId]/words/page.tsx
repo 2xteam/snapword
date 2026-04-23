@@ -195,7 +195,7 @@ export default function VocabWordsEditPage() {
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Link href={`/vocab/${vocabId}`} style={backBtnStyle} title="뒤로">
+        <Link href={`/vocab/${vocabId}`} style={backBtnStyle} title="뒤로" data-guide="back-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -205,7 +205,7 @@ export default function VocabWordsEditPage() {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button type="button" onClick={openAddDialog} style={btn}>추가</button>
-        <label style={{ ...btn, cursor: "pointer", display: "inline-block" }}>
+        <label data-guide="photo-add-btn" style={{ ...btn, cursor: "pointer", display: "inline-block" }}>
           사진으로 추가
           <input type="file" accept="image/*" hidden onChange={(e) => void runVision(e.target.files?.[0] ?? null)} />
         </label>

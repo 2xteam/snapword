@@ -62,7 +62,7 @@ export function EgArticleList({
 
   return (
     <>
-      <section style={{ minWidth: 0, overflow: "hidden" }}>
+      <section data-guide="eg-section" style={{ minWidth: 0, overflow: "hidden" }}>
         <h2 style={sectionTitle}>더 공부해 볼까?</h2>
         <div
           ref={scrollRef}

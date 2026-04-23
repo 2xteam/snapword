@@ -59,6 +59,7 @@ export default function HomeFoldersPage() {
       const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: null }) });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "폴더 생성 실패"); return; }
+      setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
     } else if (dialog?.type === "rename") {
       if (!dialogName.trim()) return;
       const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
@@ -81,7 +82,7 @@ export default function HomeFoldersPage() {
         <h1 style={{ margin: 0, fontSize: "1.2rem", color: "var(--text-primary)", flex: 1 }}>
           Folders
         </h1>
-        <button type="button" onClick={openCreate} style={btnSmall} title="새 폴더">
+        <button type="button" onClick={openCreate} style={btnSmall} title="새 폴더" data-guide="create-folder-btn">
           <FolderPlusIcon />
         </button>
       </div>
@@ -96,9 +97,9 @@ export default function HomeFoldersPage() {
             폴더가 없습니다. 새 폴더를 만들어 보세요.
           </li>
         ) : (
-          folders.map((f) => (
+          folders.map((f, fi) => (
             <li key={f._id} style={{ display: "flex", alignItems: "center" }}>
-              <Link href={`/folders/${f._id}`} style={explorerRow}>
+              <Link href={`/folders/${f._id}`} style={explorerRow} {...(fi === 0 ? { "data-guide": "first-folder" } : {})}>
                 <FolderIcon />
                 <span style={{ flex: 1 }}>{f.name}</span>
               </Link>
