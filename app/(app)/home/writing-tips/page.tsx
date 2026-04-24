@@ -157,7 +157,7 @@ const listWrap: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: 1,
-  borderRadius: 14,
+  borderRadius: "var(--radius-lg)",
   overflow: "hidden",
   border: "1px solid var(--border)",
 };
@@ -221,7 +221,7 @@ const moreBtn: CSSProperties = {
   gap: 6,
   width: "100%",
   padding: "0.75rem",
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--border)",
   background: "var(--bg-card)",
   color: "var(--text-secondary)",

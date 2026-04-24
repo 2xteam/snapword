@@ -55,8 +55,8 @@ export function TopNav() {
               className="topnav-logo"
               onClick={() => setAppMenu((v) => !v)}
             >
-              <AppIcon size={26} alt="" priority className="topnav-logo-icon" />
-              SnapWord
+              <AppIcon size={28} alt="" priority className="topnav-logo-icon" />
+              <span style={{ fontStyle: "italic", fontWeight: 900 }}>SnapWord</span>
               <ChevronIcon open={appMenu} />
             </button>
             {appMenu && (
@@ -69,8 +69,8 @@ export function TopNav() {
                     onClick={() => setAppMenu(false)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={app.iconUrl} alt={app.name} width={26} height={26} className="app-switcher-icon" />
-                    <span>{app.name}</span>
+                    <img src={app.iconUrl} alt={app.name} width={28} height={28} className="app-switcher-icon" />
+                    <span style={{ fontStyle: "italic", fontWeight: 900 }}>{app.name}</span>
                   </a>
                 ))}
               </div>

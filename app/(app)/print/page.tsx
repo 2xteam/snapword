@@ -240,7 +240,7 @@ export default function PrintPage() {
             width: "100%",
             padding: "0.75rem",
             background: "var(--accent)",
-            color: "#fff",
+            color: "#000",
             border: "none",
             fontWeight: 600,
           }}
@@ -312,7 +312,6 @@ ${blocks}
 
 const card: CSSProperties = {
   background: "var(--bg-card)",
-  borderRadius: 16,
+  borderRadius: "var(--radius-lg)",
   padding: "1rem",
-  border: "1px solid var(--border)",
 };

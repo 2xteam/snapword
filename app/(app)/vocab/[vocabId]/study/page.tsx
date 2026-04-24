@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
-import { useDragScroll } from "@/lib/useDragScroll";
+import { BouncingSmiley } from "@/components/BouncingSmiley";
+import { WaveText } from "@/components/WaveText";
 
 type W = {
   _id: string;
@@ -23,8 +24,8 @@ type TestWordStat = { wrongCount: number; attempts: number };
 const DICT = (word: string) =>
   `https://en.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word)}&from=nsearch`;
 
-const PEEK = 12;
-const GAP = 8;
+const PEEK_PCT = 15;
+const GAP = 12;
 
 export default function StudyPage() {
   const { vocabId } = useParams<{ vocabId: string }>();
@@ -39,11 +40,6 @@ export default function StudyPage() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const dragRef = useDragScroll();
-  const mergedRef = useCallback((node: HTMLDivElement | null) => {
-    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-    dragRef(node);
-  }, [dragRef]);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -83,10 +79,11 @@ export default function StudyPage() {
     scrollTimer.current = setTimeout(() => {
       const el = scrollRef.current;
       if (!el || words.length === 0) return;
-      const containerW = el.offsetWidth;
-      const cardW = containerW - 2 * PEEK;
-      const step = cardW + GAP;
-      const newIdx = Math.round(el.scrollLeft / step);
+      const containerH = el.offsetHeight;
+      const peek = containerH * PEEK_PCT / 100;
+      const cardH = containerH - 2 * peek;
+      const step = cardH + GAP;
+      const newIdx = Math.round(el.scrollTop / step);
       const clamped = Math.max(0, Math.min(words.length - 1, newIdx));
       setIdx(clamped);
     }, 60);
@@ -150,91 +147,112 @@ export default function StudyPage() {
             </span>
           </div>
 
-          {/* Scroll-snap carousel */}
+          {/* Scroll-snap carousel (vertical) */}
           <div
-            ref={mergedRef}
+            ref={scrollRef}
             onScroll={onScroll}
             className="study-carousel"
             style={{
               flex: 1,
               display: "flex",
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
+              flexDirection: "column",
+              alignItems: "center",
+              overflowY: "auto",
+              overflowX: "hidden",
+              scrollSnapType: "y mandatory",
               WebkitOverflowScrolling: "touch",
               minHeight: 0,
             }}
           >
-            {/* Left spacer — ensures first card can be centered */}
-            <div style={{ flexShrink: 0, width: PEEK }} />
+            <div style={{ flexShrink: 0, height: `${PEEK_PCT}%` }} />
 
             {words.map((word, i) => {
               const isFlipped = flipped.has(word._id);
               const stat = testStats[word._id];
               const wc = stat?.wrongCount ?? 0;
+              const correctCount = (stat?.attempts ?? 0) - wc;
+              const smileyScore = Math.max(-2, Math.min(2, correctCount - wc));
               return (
                 <div
                   key={word._id}
                   style={{
                     ...cardStyle,
+                    position: "relative",
+                    overflow: "hidden",
                     scrollSnapAlign: "center",
-                    width: `calc(100% - ${2 * PEEK}px)`,
-                    minWidth: `calc(100% - ${2 * PEEK}px)`,
-                    marginLeft: i === 0 ? 0 : GAP,
+                    width: "92%",
+                    height: `${100 - 2 * PEEK_PCT}%`,
+                    minHeight: `${100 - 2 * PEEK_PCT}%`,
+                    marginTop: i === 0 ? 0 : GAP,
                   }}
                 >
-                  <div style={{ textAlign: "center", paddingTop: "1.5rem" }}>
-                    <div style={{ fontSize: wc >= 3 ? "1.8rem" : "1.5rem", fontWeight: 600, color: isFlipped ? "var(--accent)" : "var(--text-primary)" }}>
-                      {word.word}
+                  <BouncingSmiley score={smileyScore} seed={word._id} paused={isFlipped} />
+                  <div style={{ position: "relative", zIndex: 1, textAlign: "center", paddingTop: "1.5rem" }}>
+                    <div style={{ color: isFlipped ? "var(--accent)" : "var(--text-primary)" }}>
+                      <WaveText text={word.word} active={isFlipped} fontSize={wc >= 3 ? "1.8rem" : "1.5rem"} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleFlip(word._id)}
-                      style={flipBtnStyle}
-                    >
-                      {isFlipped ? "접기" : "뜻·예문 보기"}
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20, flexWrap: "wrap", justifyContent: "center" }}>
+                      {!isFlipped ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleFlip(word._id)}
+                          style={flipBtnStyle}
+                        >
+                          뜻·예문 보기
+                        </button>
+                      ) : (
+                        <>
+                          <a href={DICT(word.word)} target="_blank" rel="noreferrer" style={dictBtnStyle}>
+                            사전 (Naver)
+                          </a>
+                          <button
+                            type="button"
+                            disabled={aiLoading === word._id}
+                            onClick={async () => {
+                              setAiLoading(word._id);
+                              try {
+                                const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}`);
+                                const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
+                                if (j.ok && j.hit && j.answer) {
+                                  setAiCache((prev) => ({ ...prev, [word._id]: j.answer! }));
+                                  setAiLoading(null);
+                                  return;
+                                }
+                              } catch { /* fallback */ }
+                              setAiLoading(null);
+                              const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
+                              openFloatingChat(prompt, word.word);
+                            }}
+                            style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 64 64" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                              <circle cx="32" cy="32" r="30" fill="currentColor" />
+                              <circle cx="23" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+                              <circle cx="41" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+                              <circle cx="24.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+                              <circle cx="42.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+                              <line x1="24" y1="40" x2="40" y2="40" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5" strokeLinecap="round" />
+                            </svg>
+                            {aiLoading === word._id ? "확인 중…" : "AI에게 질문"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleFlip(word._id)}
+                            style={flipBtnStyle}
+                          >
+                            접기
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {isFlipped && (
-                    <div style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
+                    <div style={{ position: "relative", zIndex: 1, fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
                       <p><strong style={{ color: "var(--text-primary)" }}>설명</strong> {word.meaning}</p>
                       {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>예문</strong> {word.example}</p> : null}
                       {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>동의어</strong> {word.synonyms.join(", ")}</p> : null}
                       {word.antonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>반의어</strong> {word.antonyms.join(", ")}</p> : null}
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                        <a href={DICT(word.word)} target="_blank" rel="noreferrer" style={dictBtnStyle}>
-                          사전 (Naver)
-                        </a>
-                        <button
-                          type="button"
-                          disabled={aiLoading === word._id}
-                          onClick={async () => {
-                            setAiLoading(word._id);
-                            try {
-                              const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}`);
-                              const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
-                              if (j.ok && j.hit && j.answer) {
-                                setAiCache((prev) => ({ ...prev, [word._id]: j.answer! }));
-                                setAiLoading(null);
-                                return;
-                              }
-                            } catch { /* fallback */ }
-                            setAiLoading(null);
-                            const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
-                            openFloatingChat(prompt, word.word);
-                          }}
-                          style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
-                            <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-                            <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
-                          </svg>
-                          {aiLoading === word._id ? "확인 중…" : "AI에게 질문"}
-                        </button>
-                      </div>
                       {aiCache[word._id] && (
                         <div style={aiAnswerWrap}>
                           <div style={aiAnswerHeader}>
@@ -254,13 +272,8 @@ export default function StudyPage() {
               );
             })}
 
-            {/* Right spacer — ensures last card can be centered */}
-            <div style={{ flexShrink: 0, width: PEEK }} />
+            <div style={{ flexShrink: 0, height: `${PEEK_PCT}%` }} />
           </div>
-
-          <p style={{ textAlign: "center", margin: "0.25rem 0 0.35rem", fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-            ← 좌우로 스와이프하여 이동 →
-          </p>
         </div>
       )}
     </div>
@@ -276,17 +289,15 @@ const backBtnStyle: CSSProperties = {
 
 const cardStyle: CSSProperties = {
   flexShrink: 0,
-  borderRadius: 14,
+  borderRadius: "var(--radius-lg)",
   padding: "1.5rem 1.25rem",
   background: "var(--bg-card)",
-  border: "1px solid var(--border)",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
 };
 
 const flipBtnStyle: CSSProperties = {
-  marginTop: 24,
   fontSize: 13,
   padding: "0.4rem 0.85rem",
   borderRadius: 8,
@@ -313,8 +324,8 @@ const aiBtnStyle: CSSProperties = {
   gap: 5,
   padding: "0.4rem 0.85rem",
   borderRadius: 999,
-  background: "var(--chat-fab-bg)",
-  color: "var(--chat-fab-fg)",
+  background: "var(--accent)",
+  color: "#fff",
   fontWeight: 600,
   fontSize: 13,
   border: "none",
@@ -323,7 +334,7 @@ const aiBtnStyle: CSSProperties = {
 
 const aiAnswerWrap: CSSProperties = {
   marginTop: 12,
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--accent)",
   background: "var(--accent-subtle)",
   overflow: "hidden",

@@ -366,7 +366,7 @@ const doneToast: CSSProperties = {
 const guideFab: CSSProperties = {
   position: "fixed", bottom: 88, right: 24, zIndex: 9998,
   width: 52, height: 52, borderRadius: "50%", border: "none",
-  background: "var(--chat-fab-bg)", color: "var(--chat-fab-fg)",
+  background: "var(--accent)", color: "#fff",
   cursor: "pointer", display: "flex", alignItems: "center",
   justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
   transition: "transform 0.15s ease",

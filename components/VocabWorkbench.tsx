@@ -201,7 +201,7 @@ export function VocabWorkbench() {
       <section
         style={{
           border: "1px solid #e5e7eb",
-          borderRadius: 12,
+          borderRadius: "var(--radius-sm)",
           padding: "1rem",
         }}
       >
@@ -264,7 +264,7 @@ export function VocabWorkbench() {
       <section
         style={{
           border: "1px solid #e5e7eb",
-          borderRadius: 12,
+          borderRadius: "var(--radius-sm)",
           padding: "1rem",
         }}
       >
@@ -284,7 +284,7 @@ export function VocabWorkbench() {
       <section
         style={{
           border: "1px solid #e5e7eb",
-          borderRadius: 12,
+          borderRadius: "var(--radius-sm)",
           padding: "1rem",
         }}
       >
@@ -317,7 +317,7 @@ export function VocabWorkbench() {
         <div
           style={{
             border: "1px solid #e5e7eb",
-            borderRadius: 12,
+            borderRadius: "var(--radius-sm)",
             padding: "1rem",
             background: "#f9fafb",
           }}
@@ -329,7 +329,7 @@ export function VocabWorkbench() {
       <section
         style={{
           border: "1px solid #e5e7eb",
-          borderRadius: 12,
+          borderRadius: "var(--radius-sm)",
           padding: "1rem",
         }}
       >
@@ -350,7 +350,7 @@ export function VocabWorkbench() {
       <section
         style={{
           border: "1px solid #e5e7eb",
-          borderRadius: 12,
+          borderRadius: "var(--radius-sm)",
           padding: "1rem",
         }}
       >

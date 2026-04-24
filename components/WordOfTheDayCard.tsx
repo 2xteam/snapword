@@ -18,7 +18,7 @@ export interface WotdData {
   pubDate: string;
 }
 
-export function WordOfTheDayCard({ data }: { data: WotdData }) {
+export function WordOfTheDayCard({ data, compact }: { data: WotdData; compact?: boolean }) {
   const [open, setOpen] = useState(false);
 
   const dateStr = data.pubDate
@@ -27,6 +27,25 @@ export function WordOfTheDayCard({ data }: { data: WotdData }) {
         day: "numeric",
       })
     : "";
+
+  if (compact) {
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)} style={compactCard}>
+          <span style={{ fontSize: 28 }}>📖</span>
+          <span style={{ fontSize: 17, fontWeight: 800, fontStyle: "italic", color: "#000" }}>{data.word}</span>
+          {data.pronunciation && (
+            <span style={{ fontSize: 10, color: "rgba(0,0,0,0.5)", fontStyle: "italic" }}>{data.pronunciation}</span>
+          )}
+          {data.partOfSpeech && (
+            <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(0,0,0,0.45)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{data.partOfSpeech}</span>
+          )}
+          <span style={{ fontSize: 10, color: "rgba(0,0,0,0.55)", textAlign: "center", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never, overflow: "hidden" }}>{data.definition}</span>
+        </button>
+        {open && <WotdModal data={data} onClose={() => setOpen(false)} />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -275,16 +294,31 @@ const sectionTitle: CSSProperties = {
   color: "var(--text-primary)",
 };
 
+const compactCard: CSSProperties = {
+  aspectRatio: "1",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  borderRadius: "var(--radius-lg)",
+  background: "var(--accent)",
+  border: "none",
+  cursor: "pointer",
+  padding: "0.75rem",
+  width: "100%",
+};
+
 const card: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 14,
   width: "100%",
   padding: "1rem 1.1rem",
-  borderRadius: 16,
+  borderRadius: "var(--radius-lg)",
   border: "none",
   background: "var(--accent)",
-  color: "#fff",
+  color: "#000",
   cursor: "pointer",
   textAlign: "left",
 };
@@ -449,11 +483,11 @@ const askAiBtn: CSSProperties = {
   gap: 5,
   fontSize: 13,
   fontWeight: 600,
-  color: "var(--chat-fab-fg)",
+  color: "#fff",
   padding: "8px 16px",
   borderRadius: 999,
   border: "none",
-  background: "var(--chat-fab-bg)",
+  background: "var(--accent)",
   cursor: "pointer",
 };
 
@@ -473,8 +507,8 @@ const addVocabBtn: CSSProperties = {
 
 const deckPickerWrap: CSSProperties = {
   marginTop: 14,
-  borderRadius: 12,
-  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-sm)",
+  border: "none",
   background: "var(--bg-elevated)",
   overflow: "hidden",
 };
@@ -517,7 +551,7 @@ const deckItem: CSSProperties = {
 
 const cachedAnswerWrap: CSSProperties = {
   marginTop: 14,
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--accent)",
   background: "var(--accent-subtle)",
   overflow: "hidden",
@@ -552,12 +586,13 @@ const cachedAnswerBody: CSSProperties = {
 
 function RobotIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
-      <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-      <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
+    <svg width="14" height="14" viewBox="0 0 64 64" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <circle cx="32" cy="32" r="30" fill="currentColor" />
+      <circle cx="23" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+      <circle cx="41" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+      <circle cx="24.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+      <circle cx="42.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+      <line x1="24" y1="40" x2="40" y2="40" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }

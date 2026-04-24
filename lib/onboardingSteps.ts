@@ -17,23 +17,23 @@ const PAGE_GUIDES: PageGuide[] = [
     steps: [
       {
         selector: "[data-guide='wotd-section']",
-        title: "오늘의 Word!",
+        title: "오늘의 Word",
         description: "매일 새로운 영단어를 확인할 수 있어요. 카드를 눌러 자세한 내용을 확인해 보세요!",
-      },
-      {
-        selector: "[data-guide='deck-section']",
-        title: "최근 단어장",
-        description: "최근에 사용한 단어장을 바로 열 수 있어요.",
-      },
-      {
-        selector: "[data-guide='folder-section']",
-        title: "최근 폴더",
-        description: "폴더별로 단어장을 정리할 수 있어요.",
       },
       {
         selector: "[data-guide='review-section']",
         title: "복습",
         description: "시험에서 많이 틀린 단어를 모아 복습할 수 있어요.",
+      },
+      {
+        selector: "[data-guide='deck-section']",
+        title: "최근 단어장",
+        description: "최근에 사용한 단어장을 좌우로 넘기며 바로 열 수 있어요.",
+      },
+      {
+        selector: "[data-guide='folder-section']",
+        title: "최근 폴더",
+        description: "폴더별로 단어장을 정리할 수 있어요. 좌우로 넘겨 확인하세요.",
       },
       {
         selector: "[data-guide='eg-section']",

@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
-import { useDragScroll } from "@/lib/useDragScroll";
+import { BouncingSmiley } from "@/components/BouncingSmiley";
+import { WaveText } from "@/components/WaveText";
 
 type W = {
   _id: string;
@@ -23,8 +24,8 @@ type W = {
 const DICT = (word: string) =>
   `https://en.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word)}&from=nsearch`;
 
-const PEEK = 12;
-const GAP = 8;
+const PEEK_PCT = 15;
+const GAP = 12;
 
 export default function WrongWordsPage() {
   const router = useRouter();
@@ -37,11 +38,6 @@ export default function WrongWordsPage() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const dragRef = useDragScroll();
-  const mergedRef = useCallback((node: HTMLDivElement | null) => {
-    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-    dragRef(node);
-  }, [dragRef]);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -67,10 +63,11 @@ export default function WrongWordsPage() {
     scrollTimer.current = setTimeout(() => {
       const el = scrollRef.current;
       if (!el || words.length === 0) return;
-      const containerW = el.offsetWidth;
-      const cardW = containerW - 2 * PEEK;
-      const step = cardW + GAP;
-      const newIdx = Math.round(el.scrollLeft / step);
+      const containerH = el.offsetHeight;
+      const peek = containerH * PEEK_PCT / 100;
+      const cardH = containerH - 2 * peek;
+      const step = cardH + GAP;
+      const newIdx = Math.round(el.scrollTop / step);
       const clamped = Math.max(0, Math.min(words.length - 1, newIdx));
       setIdx(clamped);
     }, 60);
@@ -132,36 +129,45 @@ export default function WrongWordsPage() {
           </div>
 
           <div
-            ref={mergedRef}
+            ref={scrollRef}
             onScroll={onScroll}
             className="study-carousel"
             style={{
               flex: 1,
               display: "flex",
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
+              flexDirection: "column",
+              alignItems: "center",
+              overflowY: "auto",
+              overflowX: "hidden",
+              scrollSnapType: "y mandatory",
               WebkitOverflowScrolling: "touch",
               minHeight: 0,
             }}
           >
-            <div style={{ flexShrink: 0, width: PEEK }} />
+            <div style={{ flexShrink: 0, height: `${PEEK_PCT}%` }} />
 
             {words.map((word, i) => {
               const isFlipped = flipped.has(word._id);
+              const correctCount = (word.attempts ?? 0) - (word.wrongCount ?? 0);
+              const smileyScore = Math.max(-2, Math.min(2, correctCount - (word.wrongCount ?? 0)));
               return (
                 <div
                   key={word._id}
                   style={{
                     ...cardStyle,
+                    position: "relative",
+                    overflow: "hidden",
                     scrollSnapAlign: "center",
-                    width: `calc(100% - ${2 * PEEK}px)`,
-                    minWidth: `calc(100% - ${2 * PEEK}px)`,
-                    marginLeft: i === 0 ? 0 : GAP,
+                    width: "92%",
+                    height: `${100 - 2 * PEEK_PCT}%`,
+                    minHeight: `${100 - 2 * PEEK_PCT}%`,
+                    marginTop: i === 0 ? 0 : GAP,
                   }}
                 >
-                  <div style={{ textAlign: "center", paddingTop: "1.5rem" }}>
-                    <div style={{ fontSize: "1.8rem", fontWeight: 600, color: isFlipped ? "var(--danger)" : "var(--text-primary)" }}>
-                      {word.word}
+                  <BouncingSmiley score={smileyScore} seed={word._id} paused={isFlipped} />
+                  <div style={{ position: "relative", zIndex: 1, textAlign: "center", paddingTop: "1.5rem" }}>
+                    <div style={{ color: isFlipped ? "var(--danger)" : "var(--text-primary)" }}>
+                      <WaveText text={word.word} active={isFlipped} fontSize="1.8rem" />
                     </div>
                     <span style={{ display: "inline-block", marginTop: 6, padding: "2px 10px", borderRadius: 999, background: "var(--danger-subtle)", color: "var(--danger)", fontSize: 11, fontWeight: 600 }}>
                       오답 {word.wrongCount}회
@@ -176,7 +182,7 @@ export default function WrongWordsPage() {
                   </div>
 
                   {isFlipped && (
-                    <div style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
+                    <div style={{ position: "relative", zIndex: 1, fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
                       <p><strong style={{ color: "var(--text-primary)" }}>설명</strong> {word.meaning}</p>
                       {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>예문</strong> {word.example}</p> : null}
                       {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>동의어</strong> {word.synonyms.join(", ")}</p> : null}
@@ -205,12 +211,13 @@ export default function WrongWordsPage() {
                           }}
                           style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
-                            <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-                            <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
+                          <svg width="14" height="14" viewBox="0 0 64 64" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                            <circle cx="32" cy="32" r="30" fill="currentColor" />
+                            <circle cx="23" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+                            <circle cx="41" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+                            <circle cx="24.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+                            <circle cx="42.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+                            <line x1="24" y1="40" x2="40" y2="40" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5" strokeLinecap="round" />
                           </svg>
                           {aiLoading === word._id ? "확인 중…" : "AI에게 질문"}
                         </button>
@@ -234,12 +241,8 @@ export default function WrongWordsPage() {
               );
             })}
 
-            <div style={{ flexShrink: 0, width: PEEK }} />
+            <div style={{ flexShrink: 0, height: `${PEEK_PCT}%` }} />
           </div>
-
-          <p style={{ textAlign: "center", margin: "0.25rem 0 0.35rem", fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-            ← 좌우로 스와이프하여 이동 →
-          </p>
         </div>
       )}
     </div>
@@ -255,10 +258,9 @@ const backBtnStyle: CSSProperties = {
 
 const cardStyle: CSSProperties = {
   flexShrink: 0,
-  borderRadius: 14,
+  borderRadius: "var(--radius-lg)",
   padding: "1.5rem 1.25rem",
   background: "var(--bg-card)",
-  border: "1px solid var(--border)",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
@@ -295,8 +297,8 @@ const aiBtnStyle: CSSProperties = {
   gap: 5,
   padding: "0.4rem 0.85rem",
   borderRadius: 999,
-  background: "var(--chat-fab-bg)",
-  color: "var(--chat-fab-fg)",
+  background: "var(--accent)",
+  color: "#fff",
   fontWeight: 600,
   fontSize: 13,
   border: "none",
@@ -305,7 +307,7 @@ const aiBtnStyle: CSSProperties = {
 
 const aiAnswerWrap: CSSProperties = {
   marginTop: 12,
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--accent)",
   background: "var(--accent-subtle)",
   overflow: "hidden",

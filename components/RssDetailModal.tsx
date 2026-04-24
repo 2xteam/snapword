@@ -258,7 +258,7 @@ const listItem: CSSProperties = {
   alignItems: "flex-start",
   gap: 10,
   padding: "8px 10px",
-  borderRadius: 10,
+  borderRadius: "var(--radius-sm)",
   background: "var(--bg-elevated, #F9FAFB)",
 };
 
@@ -350,7 +350,7 @@ const dateStyle: CSSProperties = {
 
 const audioWrap: CSSProperties = {
   background: "var(--bg-elevated, #F9FAFB)",
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   padding: "10px 12px",
   marginBottom: 14,
 };
@@ -362,7 +362,7 @@ const audioPlayer: CSSProperties = {
 };
 
 const imageWrap: CSSProperties = {
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   overflow: "hidden",
   marginBottom: 14,
 };
@@ -411,7 +411,7 @@ const askAiBtnStyle: CSSProperties = {
 
 const rssAiAnswerWrap: CSSProperties = {
   marginTop: 14,
-  borderRadius: 12,
+  borderRadius: "var(--radius-sm)",
   border: "1px solid var(--accent)",
   background: "var(--accent-subtle)",
   overflow: "hidden",
@@ -446,12 +446,13 @@ const rssAiAnswerBody: CSSProperties = {
 
 function RobotSvg() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <rect x="4" y="8" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
-      <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-      <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="3.5" r="1.5" fill="currentColor" />
+    <svg width="14" height="14" viewBox="0 0 64 64" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <circle cx="32" cy="32" r="30" fill="currentColor" />
+      <circle cx="23" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+      <circle cx="41" cy="28" r="4.5" fill="rgba(0,0,0,0.55)" />
+      <circle cx="24.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+      <circle cx="42.5" cy="26.5" r="1.5" fill="rgba(255,255,255,0.5)" />
+      <line x1="24" y1="40" x2="40" y2="40" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }

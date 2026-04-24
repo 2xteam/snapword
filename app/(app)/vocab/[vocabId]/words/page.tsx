@@ -220,7 +220,7 @@ export default function VocabWordsEditPage() {
           <p style={{ color: "var(--text-muted)", fontSize: 14 }}>단어가 없습니다. 위 버튼으로 추가하세요.</p>
         ) : (
           rows.map((r, i) => (
-            <div key={`${r._id ?? "new"}-${i}`} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: "0.85rem", background: "var(--bg-card)" }}>
+            <div key={`${r._id ?? "new"}-${i}`} style={{ borderRadius: "var(--radius-lg)", padding: "0.85rem", background: "var(--bg-card)" }}>
               <Field label="단어 *" value={r.word} onChange={(v) => updateRow(i, { word: v })} />
               <Field label="설명 *" value={r.meaning} onChange={(v) => updateRow(i, { meaning: v })} multiline />
               <Field label="예문" value={r.example} onChange={(v) => updateRow(i, { example: v })} multiline />
@@ -271,7 +271,7 @@ export default function VocabWordsEditPage() {
             </h3>
             <div style={{ display: "grid", gap: "0.75rem", maxHeight: "55vh", overflowY: "auto", paddingBottom: 60 }}>
               {visionRows.map((vr, i) => (
-                <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "0.75rem", background: "var(--bg-elevated)" }}>
+                <div key={i} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "0.75rem", background: "var(--bg-elevated)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>#{i + 1}</span>
                     <button type="button" onClick={() => removeVisionRow(i)} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 12 }}>삭제</button>
@@ -356,7 +356,7 @@ const backBtnStyle: CSSProperties = {
 };
 
 const btn: CSSProperties = {
-  padding: "0.45rem 0.75rem", borderRadius: 10,
+  padding: "0.45rem 0.75rem", borderRadius: "var(--radius-sm)",
   border: "1px solid var(--border)", background: "var(--bg-elevated)",
   color: "var(--text-primary)", fontSize: 13, cursor: "pointer",
 };
@@ -372,17 +372,17 @@ const btnDanger: CSSProperties = {
 };
 
 const btnDangerAction: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10, border: "none",
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
   background: "#dc2626", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13,
 };
 
 const btnAccent: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10, border: "none",
-  background: "var(--accent)", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13,
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
+  background: "var(--accent)", color: "#000", fontWeight: 600, cursor: "pointer", fontSize: 13,
 };
 
 const btnCancel: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10,
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)",
   border: "1px solid var(--border)", background: "var(--bg-elevated)",
   color: "var(--text-secondary)", fontWeight: 500, cursor: "pointer", fontSize: 13,
 };
@@ -392,8 +392,8 @@ const overlayStyle: CSSProperties = { position: "fixed", inset: 0, background: "
 const dialogBoxStyle: CSSProperties = {
   position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
   zIndex: 201, width: "min(90vw, 480px)",
-  background: "var(--bg-card)", border: "1px solid var(--border)",
-  borderRadius: 16, padding: "1.5rem", boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+  background: "var(--bg-card)",
+  borderRadius: "var(--radius-lg)", padding: "1.5rem", boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   maxHeight: "85vh", overflowY: "auto",
 };
 

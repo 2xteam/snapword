@@ -330,19 +330,19 @@ const btnAction: CSSProperties = {
 };
 
 const btnAccent: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10, border: "none",
-  background: "var(--accent)", color: "#fff", fontWeight: 600,
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
+  background: "var(--accent)", color: "#000", fontWeight: 600,
   cursor: "pointer", fontSize: 13,
 };
 
 const btnDanger: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10, border: "none",
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
   background: "#dc2626", color: "#fff", fontWeight: 600,
   cursor: "pointer", fontSize: 13,
 };
 
 const btnCancel: CSSProperties = {
-  padding: "0.55rem 1rem", borderRadius: 10, border: "1px solid var(--border)",
+  padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
   background: "var(--bg-elevated)", color: "var(--text-secondary)",
   fontWeight: 500, cursor: "pointer", fontSize: 13,
 };
@@ -355,6 +355,6 @@ const dialogBoxStyle: CSSProperties = {
   position: "fixed", top: "50%", left: "50%",
   transform: "translate(-50%, -50%)", zIndex: 201,
   width: "min(90vw, 400px)", background: "var(--bg-card)",
-  border: "1px solid var(--border)", borderRadius: 16,
+  borderRadius: "var(--radius-lg)",
   padding: "1.5rem", boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
 };

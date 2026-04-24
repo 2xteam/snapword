@@ -67,7 +67,7 @@ const container: CSSProperties = {
 
 const toast: CSSProperties = {
   padding: "10px 20px",
-  borderRadius: 12,
+  borderRadius: "var(--radius-full)",
   fontSize: 13,
   fontWeight: 600,
   boxShadow: "0 4px 20px rgba(0,0,0,0.25)",

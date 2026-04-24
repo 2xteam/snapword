@@ -162,9 +162,8 @@ const backBtnStyle: CSSProperties = {
 const summaryCard: CSSProperties = {
   textAlign: "center",
   padding: "1.5rem 1rem",
-  borderRadius: 16,
+  borderRadius: "var(--radius-lg)",
   background: "var(--bg-card)",
-  border: "1px solid var(--border)",
 };
 
 const sectionTitle: CSSProperties = {
@@ -178,9 +177,8 @@ const sectionTitle: CSSProperties = {
 
 const resultCard: CSSProperties = {
   padding: "0.75rem 1rem",
-  borderRadius: 10,
+  borderRadius: "var(--radius-sm)",
   background: "var(--bg-card)",
-  border: "1px solid var(--border)",
 };
 
 const wrongBadge: CSSProperties = {

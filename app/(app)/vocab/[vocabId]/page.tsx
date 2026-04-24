@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
 
 type Deck = { _id: string; name: string; folderId: string };
@@ -35,8 +35,17 @@ export default function VocabHubPage() {
   const base = `/vocab/${vocabId}`;
 
   return (
-    <div style={{ paddingTop: "0.25rem" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1.5rem" }}>
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      height: "calc(100vh - var(--nav-height) - var(--nav-top))",
+      margin: "0 -1rem",
+      marginTop: "-1rem",
+      marginBottom: "-2rem",
+      position: "relative",
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.75rem 1rem", flexShrink: 0 }}>
         <Link
           href={deck?.folderId ? `/home/folder/${deck.folderId}` : "/home"}
           style={backBtnStyle}
@@ -50,20 +59,28 @@ export default function VocabHubPage() {
           {deck?.name ?? "단어장"}
         </h1>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "0.6rem",
-          maxWidth: 400,
-          margin: "0 auto",
-        }}
-      >
-        <HubButton href={`${base}/words`} label="단어 추가·편집" sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
-        <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} guide="hub-study" />
-        <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} guide="hub-test" />
-        <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} guide="hub-score" />
+
+      {/* Center grid */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.6rem",
+            maxWidth: 400,
+            width: "100%",
+            padding: "0 1rem",
+          }}
+        >
+          <HubButton href={`${base}/words`} label="단어 추가·편집" sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
+          <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} guide="hub-study" />
+          <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} guide="hub-test" />
+          <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} guide="hub-score" />
+        </div>
       </div>
+
+      {/* Bottom rolling smiley */}
+      <RollingSmiley />
     </div>
   );
 }
@@ -93,9 +110,8 @@ function HubButton({ href, label, sub, icon, guide }: { href: string; label: str
         justifyContent: "center",
         gap: 6,
         padding: "1.1rem 0.75rem",
-        borderRadius: 14,
+        borderRadius: "var(--radius-lg)",
         background: "var(--bg-card)",
-        border: "1px solid var(--border)",
         textDecoration: "none",
         transition: "border-color 0.15s, background 0.15s",
       }}
@@ -139,4 +155,98 @@ function ChartIcon() {
       <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+const NEON = [
+  "#2ee8ae","#00e5ff","#76ff03","#ffea00","#ff6d00","#ff1744",
+  "#f50057","#d500f9","#651fff","#00b0ff","#1de9b6","#ff4ecd",
+];
+const BALL = 48;
+
+function RollingSmiley() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ballRef = useRef<HTMLDivElement>(null);
+  const raf = useRef(0);
+  const st = useRef({ x: 0, dir: 1, rot: 0, color: NEON[0], cry: false, init: false });
+
+  useEffect(() => {
+    const ct = containerRef.current;
+    const bl = ballRef.current;
+    if (!ct || !bl) return;
+    const o = st.current;
+
+    if (!o.init) {
+      o.color = NEON[Math.floor(Math.random() * NEON.length)];
+      o.init = true;
+    }
+
+    const SPEED = 1.5;
+
+    const pick = (exc: string) => {
+      const p = NEON.filter((c) => c !== exc);
+      return p[Math.floor(Math.random() * p.length)];
+    };
+
+    const tick = () => {
+      const maxX = ct.offsetWidth - BALL;
+      o.x += o.dir * SPEED;
+      o.rot += o.dir * SPEED * 3;
+
+      if (o.x >= maxX) {
+        o.x = maxX;
+        o.dir = -1;
+        o.cry = true;
+        o.color = pick(o.color);
+      } else if (o.x <= 0) {
+        o.x = 0;
+        o.dir = 1;
+        o.cry = false;
+        o.color = pick(o.color);
+      }
+
+      bl.style.transform = `translateX(${o.x}px) rotate(${o.rot}deg)`;
+      bl.style.backgroundImage = `url("${buildFaceSvg(o.color, o.cry)}")`;
+      raf.current = requestAnimationFrame(tick);
+    };
+
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", height: BALL, flexShrink: 0, overflow: "hidden" }}>
+      <div
+        ref={ballRef}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: BALL,
+          height: BALL,
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          willChange: "transform",
+        }}
+      />
+    </div>
+  );
+}
+
+function buildFaceSvg(color: string, crying: boolean): string {
+  const dk = "rgba(0,0,0,0.55)";
+  const wh = "rgba(255,255,255,0.5)";
+  const mouth = crying
+    ? `<path d="M24 44 Q32 36, 40 44" fill="none" stroke="${dk}" stroke-width="2.5" stroke-linecap="round"/>
+       <ellipse cx="21" cy="48" rx="2" ry="3.5" fill="rgba(100,180,255,0.6)"/>
+       <ellipse cx="43" cy="48" rx="2" ry="3.5" fill="rgba(100,180,255,0.6)"/>`
+    : `<path d="M22 40 Q32 50, 42 40" fill="none" stroke="${dk}" stroke-width="2.5" stroke-linecap="round"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="30" fill="${color}"/>
+    <circle cx="23" cy="28" r="4.5" fill="${dk}"/>
+    <circle cx="41" cy="28" r="4.5" fill="${dk}"/>
+    <circle cx="24.5" cy="26.5" r="1.5" fill="${wh}"/>
+    <circle cx="42.5" cy="26.5" r="1.5" fill="${wh}"/>
+    ${mouth}
+  </svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }

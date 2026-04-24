@@ -69,150 +69,114 @@ export default function HomePage() {
 
   if (!session) return null;
 
+  const canReview = hasTests && wrongCount > 0;
+
   return (
-    <div style={{ display: "grid", gap: "1.5rem", minWidth: 0 }}>
-      {/* Word of the Day */}
-      {rssLoading ? (
-        <section>
-          <h2 style={sectionTitle}>오늘의 Word!</h2>
-          <div style={wotdSkeletonBox}>
-            <div style={{ width: 100, height: 18, borderRadius: 6, background: "var(--border)" }} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ width: "80%", height: 12, borderRadius: 4, background: "var(--border)" }} />
-              <div style={{ width: "60%", height: 12, borderRadius: 4, background: "var(--border)" }} />
+    <div style={{ display: "grid", gap: "1rem", minWidth: 0 }}>
+      {/* Row 1: 오늘의 Word | 복습 */}
+      <div style={twoColGrid}>
+        <section data-guide="wotd-section">
+          <h2 style={sectionLabel}>오늘의 Word</h2>
+          {rssLoading ? (
+            <div style={{ ...squareCard, animation: "pulse 1.5s ease-in-out infinite" }}>
+              <div style={{ width: 60, height: 14, borderRadius: 4, background: "var(--border)" }} />
+              <div style={{ width: "70%", height: 10, borderRadius: 4, background: "var(--border)" }} />
             </div>
+          ) : wotd ? (
+            <WordOfTheDayCard data={wotd} compact />
+          ) : (
+            <div style={squareCard}>
+              <span style={{ fontSize: 28 }}>📖</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>데이터 없음</span>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h2 style={sectionLabel}>복습</h2>
+          <Link
+            href={canReview ? "/home/wrong-words" : "#"}
+            onClick={(e) => { if (!canReview) e.preventDefault(); }}
+            data-guide="review-section"
+            style={{
+              ...squareCard,
+              textDecoration: "none",
+              opacity: loaded ? (canReview ? 1 : 0.5) : 1,
+              cursor: canReview ? "pointer" : "default",
+            }}
+          >
+            <SmileyIcon score={-2} size={36} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+              많이 틀린 단어
+            </span>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", textAlign: "center", lineHeight: 1.4 }}>
+              {!loaded ? "로딩중…" : !hasTests ? "아직 시험 기록이 없어요" : wrongCount === 0 ? "틀린 단어가 없어요!" : `${wrongCount}개 복습하러 가기`}
+            </span>
+          </Link>
+        </section>
+      </div>
+
+      {/* Row 2: 최근 단어장 | 최근 폴더 — 정사각 카드, 가로 스크롤 */}
+      <div style={twoColGrid}>
+        <section data-guide="deck-section" style={{ minWidth: 0 }}>
+          <h2 style={sectionLabel}>최근 단어장</h2>
+          <div ref={deckDragRef} style={scrollRow}>
+            {!loaded ? (
+              [0, 1].map((i) => <div key={i} style={{ ...thumbCard, background: "var(--bg-elevated)", animation: "pulse 1.5s ease-in-out infinite" }} />)
+            ) : decks.length === 0 ? (
+              <div style={{ ...thumbCard, justifyContent: "center" }}>
+                <SmileyIcon score={0} size={28} />
+              </div>
+            ) : (
+              decks.map((d) => (
+                <Link key={d._id} href={`/vocab/${d._id}`} style={thumbCard}>
+                  <FileIcon />
+                  <span style={thumbLabel}>{d.name}</span>
+                </Link>
+              ))
+            )}
           </div>
         </section>
-      ) : wotd ? (
-        <WordOfTheDayCard data={wotd} />
+
+        <section data-guide="folder-section" style={{ minWidth: 0 }}>
+          <h2 style={sectionLabel}>최근 폴더</h2>
+          <div ref={folderDragRef} style={scrollRow}>
+            {!loaded ? (
+              [0, 1].map((i) => <div key={i} style={{ ...thumbCard, background: "var(--bg-elevated)", animation: "pulse 1.5s ease-in-out infinite" }} />)
+            ) : folders.length === 0 ? (
+              <div style={{ ...thumbCard, justifyContent: "center" }}>
+                <SmileyIcon score={0} size={28} />
+              </div>
+            ) : (
+              folders.map((f) => (
+                <Link key={f._id} href={`/folders/${f._id}`} style={thumbCard}>
+                  <FolderIcon />
+                  <span style={thumbLabel}>{f.name}</span>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Row 3: 더 공부해 볼까? — 현재 유지 */}
+      {rssLoading ? (
+        <EgCarouselSkeleton />
+      ) : egItems.length > 0 ? (
+        <EgArticleList items={egItems} limit={5} />
       ) : null}
 
-      {!loaded ? (
-        <>
-          <ThumbRowSkeleton title="최근 단어장" />
-          <ThumbRowSkeleton title="최근 폴더" />
-          <ReviewSkeleton />
-        </>
-      ) : (
-        <>
-          {/* 최근 단어장 */}
-          <section data-guide="deck-section" style={{ minWidth: 0, overflow: "hidden" }}>
-            <h2 style={sectionTitle}>최근 단어장</h2>
-            {decks.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>단어장이 없습니다.</p>
-            ) : (
-              <div ref={deckDragRef} className="home-scroll-row" style={scrollRow}>
-                {decks.map((d) => (
-                  <Link key={d._id} href={`/vocab/${d._id}`} style={thumbCard}>
-                    <FileIcon />
-                    <span style={thumbLabel}>{d.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 최근 폴더 */}
-          <section data-guide="folder-section" style={{ minWidth: 0, overflow: "hidden" }}>
-            <h2 style={sectionTitle}>최근 폴더</h2>
-            {folders.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>폴더가 없습니다.</p>
-            ) : (
-              <div ref={folderDragRef} className="home-scroll-row" style={scrollRow}>
-                {folders.map((f) => (
-                  <Link key={f._id} href={`/folders/${f._id}`} style={thumbCard}>
-                    <FolderIcon />
-                    <span style={thumbLabel}>{f.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 많이 틀린 단어 복습 */}
-          <section data-guide="review-section">
-            <div style={{ display: "flex", alignItems: "center", marginBottom: "0.6rem" }}>
-              <h2 style={{ margin: 0, fontSize: "1rem", color: "var(--text-primary)", flex: 1 }}>복습</h2>
-            </div>
-            <Link
-              href={hasTests && wrongCount > 0 ? "/home/wrong-words" : "#"}
-              onClick={(e) => { if (!hasTests || wrongCount === 0) e.preventDefault(); }}
-              style={{
-                ...reviewBtn,
-                opacity: hasTests && wrongCount > 0 ? 1 : 0.45,
-                cursor: hasTests && wrongCount > 0 ? "pointer" : "not-allowed",
-              }}
-            >
-              <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>📝</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
-                  많이 틀린 단어 보기
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
-                  {!hasTests
-                    ? "아직 시험을 본 적이 없습니다"
-                    : wrongCount === 0
-                      ? "틀린 단어가 없습니다"
-                      : `${wrongCount}개의 단어를 복습하세요`}
-                </div>
-              </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                <path d="M9 6l6 6-6 6" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-          </section>
-
-          {/* 최하단: English Grammar */}
-          {rssLoading ? (
-            <EgCarouselSkeleton />
-          ) : egItems.length > 0 ? (
-            <EgArticleList items={egItems} limit={5} />
-          ) : null}
-
-          <InstallButton />
-        </>
-      )}
+      <InstallButton />
     </div>
   );
 }
 
-function ThumbRowSkeleton({ title }: { title: string }) {
-  return (
-    <section style={{ minWidth: 0, overflow: "hidden" }}>
-      <h2 style={sectionTitle}>{title}</h2>
-      <div className="home-scroll-row" style={{ ...scrollRow, animation: "pulse 1.5s ease-in-out infinite" }}>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ ...thumbCard, border: "1px solid var(--border)", background: "var(--bg-elevated)", pointerEvents: "none" }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--border)" }} />
-            <div style={{ width: "70%", height: 10, borderRadius: 4, background: "var(--border)" }} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ReviewSkeleton() {
-  return (
-    <section>
-      <h2 style={{ ...sectionTitle, marginBottom: "0.6rem" }}>복습</h2>
-      <div style={{ ...reviewBtn, animation: "pulse 1.5s ease-in-out infinite", pointerEvents: "none" }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--border)", flexShrink: 0 }} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ width: "55%", height: 14, borderRadius: 4, background: "var(--border)" }} />
-          <div style={{ width: "85%", height: 11, borderRadius: 4, background: "var(--border)" }} />
-        </div>
-        <div style={{ width: 18, height: 18, borderRadius: 4, background: "var(--border)", flexShrink: 0 }} />
-      </div>
-    </section>
-  );
-}
 
 function EgCarouselSkeleton() {
   return (
     <section style={{ minWidth: 0, overflow: "hidden" }}>
-      <h2 style={sectionTitle}>더 공부해 볼까?</h2>
-      <div className="home-scroll-row" style={{ ...scrollRow, maxWidth: "100%", animation: "pulse 1.5s ease-in-out infinite" }}>
+      <h2 style={{ margin: "0 0 0.6rem", fontSize: "1rem", color: "var(--text-primary)" }}>더 공부해 볼까?</h2>
+      <div className="home-scroll-row" style={{ display: "flex", flexWrap: "nowrap", gap: 10, overflowX: "auto", overflowY: "hidden", paddingBottom: 4, WebkitOverflowScrolling: "touch" as never, maxWidth: "100%", animation: "pulse 1.5s ease-in-out infinite" }}>
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
@@ -259,33 +223,39 @@ function FileIcon() {
   );
 }
 
-const sectionTitle: CSSProperties = {
-  margin: "0 0 0.6rem",
-  fontSize: "1rem",
-  color: "var(--text-primary)",
+const sectionLabel: CSSProperties = {
+  margin: "0 0 0.4rem",
+  fontSize: 12,
+  color: "var(--text-muted)",
+  fontWeight: 600,
 };
 
-const wotdSkeletonBox: CSSProperties = {
+const twoColGrid: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "0.6rem",
+};
+
+const squareCard: CSSProperties = {
+  aspectRatio: "1",
   display: "flex",
+  flexDirection: "column",
   alignItems: "center",
-  gap: 14,
-  width: "100%",
-  padding: "1rem 1.1rem",
-  borderRadius: 16,
-  background: "var(--bg-elevated)",
-  animation: "pulse 1.5s ease-in-out infinite",
+  justifyContent: "center",
+  gap: 6,
+  borderRadius: "var(--radius-lg)",
+  background: "var(--bg-card)",
+  padding: "0.75rem",
 };
 
 const scrollRow: CSSProperties = {
   display: "flex",
   flexWrap: "nowrap",
-  gap: 10,
+  gap: 8,
   overflowX: "auto",
   overflowY: "hidden",
   paddingBottom: 4,
-  scrollSnapType: "x mandatory",
-  WebkitOverflowScrolling: "touch",
-  maxWidth: "100%",
+  WebkitOverflowScrolling: "touch" as never,
 };
 
 const thumbCard: CSSProperties = {
@@ -294,21 +264,19 @@ const thumbCard: CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   gap: 6,
-  width: 100,
-  minWidth: 100,
-  height: 100,
+  aspectRatio: "1",
+  width: "100%",
+  minWidth: "85%",
   flexShrink: 0,
-  borderRadius: 12,
-  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-lg)",
   background: "var(--bg-card)",
   textDecoration: "none",
+  padding: "0.75rem",
   scrollSnapAlign: "start",
-  padding: "0.5rem",
-  transition: "background 0.1s",
 };
 
 const thumbLabel: CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 600,
   color: "var(--text-primary)",
   textAlign: "center",
@@ -316,17 +284,36 @@ const thumbLabel: CSSProperties = {
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
   width: "100%",
-  padding: "0 2px",
 };
 
-const reviewBtn: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  width: "100%",
-  padding: "0.85rem 1rem",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--bg-card)",
-  textDecoration: "none",
-};
+function SmileyIcon({ score, size = 24 }: { score: number; size?: number }) {
+  const dk = "rgba(0,0,0,0.55)";
+  const wh = "rgba(255,255,255,0.5)";
+  let mouth;
+  switch (score) {
+    case 2:
+      mouth = <><path d="M22 40 Q32 50, 42 40" fill="none" stroke={dk} strokeWidth="2.5" strokeLinecap="round" /><line x1="25" y1="41" x2="39" y2="41" stroke={dk} strokeWidth="1.5" /></>;
+      break;
+    case 1:
+      mouth = <path d="M24 38 Q32 46, 40 38" fill="none" stroke={dk} strokeWidth="2.5" strokeLinecap="round" />;
+      break;
+    case -1:
+      mouth = <path d="M24 44 Q32 36, 40 44" fill="none" stroke={dk} strokeWidth="2.5" strokeLinecap="round" />;
+      break;
+    case -2:
+      mouth = <><ellipse cx="32" cy="42" rx="8" ry="5" fill={dk} /><ellipse cx="21" cy="50" rx="2.5" ry="4" fill="rgba(100,180,255,0.7)" /><ellipse cx="43" cy="50" rx="2.5" ry="4" fill="rgba(100,180,255,0.7)" /></>;
+      break;
+    default:
+      mouth = <line x1="24" y1="40" x2="40" y2="40" stroke={dk} strokeWidth="2.5" strokeLinecap="round" />;
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="30" fill="var(--accent)" />
+      <circle cx="23" cy="28" r="4.5" fill={dk} />
+      <circle cx="41" cy="28" r="4.5" fill={dk} />
+      <circle cx="24.5" cy="26.5" r="1.5" fill={wh} />
+      <circle cx="42.5" cy="26.5" r="1.5" fill={wh} />
+      {mouth}
+    </svg>
+  );
+}

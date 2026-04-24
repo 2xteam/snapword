@@ -155,9 +155,8 @@ export default function TestPage() {
           <div
             style={{
               padding: "1.25rem",
-              borderRadius: 16,
+              borderRadius: "var(--radius-lg)",
               background: "var(--bg-card)",
-              border: "1px solid var(--border)",
               marginBottom: "1rem",
               fontSize: "1.05rem",
               lineHeight: 1.5,
@@ -181,7 +180,7 @@ export default function TestPage() {
                   style={{
                     textAlign: "left",
                     padding: "0.75rem 1rem",
-                    borderRadius: 12,
+                    borderRadius: "var(--radius-sm)",
                     border: show && hit
                       ? "2px solid var(--success)"
                       : wrongPick
@@ -214,7 +213,7 @@ export default function TestPage() {
                 marginTop: "1rem",
                 width: "100%",
                 background: "var(--accent)",
-                color: "#fff",
+                color: "#000",
                 border: "none",
                 fontWeight: 600,
               }}
@@ -257,7 +256,7 @@ function ResultPanel({
       style={{
         marginTop: "1.5rem",
         padding: "1.75rem 1.25rem",
-        borderRadius: 24,
+        borderRadius: "var(--radius-lg)",
         textAlign: "center",
         background: great
           ? "rgba(234, 179, 8, 0.1)"

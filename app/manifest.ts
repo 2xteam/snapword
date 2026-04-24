@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "단어를 추출·정리하고 학습하는 SnapWord",
     start_url: "/home",
     display: "standalone",
-    background_color: "#111113",
-    theme_color: "#6c5ce7",
+    background_color: "#000000",
+    theme_color: "#2ee8ae",
     orientation: "portrait",
     icons: [
       {
