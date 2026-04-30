@@ -64,12 +64,40 @@ interface Stats {
   usdKrw: number;
 }
 
+interface AdminInquiry {
+  id: string;
+  name: string;
+  phone: string;
+  category: string;
+  title: string;
+  content: string;
+  status: "pending" | "answered";
+  answer: string;
+  answeredAt: string | null;
+  createdAt: string;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  bug: "버그 신고",
+  feature: "기능 요청",
+  account: "계정 문의",
+  other: "기타",
+};
+
 export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
+
+  const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
+  const [inqFilter, setInqFilter] = useState<"" | "pending" | "answered">("");
+  const [inqLoading, setInqLoading] = useState(false);
+  const [expandedInq, setExpandedInq] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [answerBusy, setAnswerBusy] = useState(false);
+  const [answerMsg, setAnswerMsg] = useState<string | null>(null);
 
   const unlockRef = useRef(false);
 
@@ -91,6 +119,18 @@ export default function AdminPage() {
     if (pin.length === 4 && !unlocked) unlock(pin);
   }, [pin, unlocked, unlock]);
 
+  const fetchInquiries = useCallback(async (code: string, filter: string) => {
+    setInqLoading(true);
+    try {
+      const qs = new URLSearchParams({ pin: code });
+      if (filter) qs.set("status", filter);
+      const res = await fetch(`/api/admin/inquiries?${qs}`);
+      const j = (await res.json()) as { ok: boolean; inquiries?: AdminInquiry[] };
+      if (j.ok && j.inquiries) setInquiries(j.inquiries);
+    } catch { /* ignore */ }
+    setInqLoading(false);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -98,7 +138,36 @@ export default function AdminPage() {
       const j = await res.json();
       if (j.ok) setStats(j as Stats);
     } catch { /* ignore */ } finally { setLoading(false); }
-  }, [pin]);
+    fetchInquiries(pin, inqFilter);
+  }, [pin, inqFilter, fetchInquiries]);
+
+  useEffect(() => {
+    if (unlocked) fetchInquiries(pin, inqFilter);
+  }, [unlocked, inqFilter, pin, fetchInquiries]);
+
+  const submitAnswer = useCallback(async (inquiryId: string) => {
+    setAnswerBusy(true);
+    setAnswerMsg(null);
+    try {
+      const res = await fetch("/api/admin/inquiries", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pin, inquiryId, answer: answerText }),
+      });
+      const j = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !j.ok) {
+        setAnswerMsg(j.error ?? "답변 등록에 실패했습니다.");
+        return;
+      }
+      setAnswerText("");
+      setExpandedInq(null);
+      fetchInquiries(pin, inqFilter);
+    } catch {
+      setAnswerMsg("네트워크 오류입니다.");
+    } finally {
+      setAnswerBusy(false);
+    }
+  }, [pin, answerText, inqFilter, fetchInquiries]);
 
   if (!unlocked) {
     return (
@@ -359,6 +428,137 @@ export default function AdminPage() {
           </tbody>
         </table>
       </div>
+
+      {/* 문의 관리 */}
+      <h2 style={sectionTitle}>문의 관리</h2>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        {([["", "전체"], ["pending", "대기 중"], ["answered", "답변 완료"]] as const).map(([val, label]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => setInqFilter(val)}
+            style={{
+              padding: "5px 14px",
+              borderRadius: 20,
+              border: "1px solid var(--border)",
+              background: inqFilter === val ? "var(--accent)" : "var(--bg-elevated)",
+              color: inqFilter === val ? "#000" : "var(--text-secondary)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {inqLoading ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>로딩 중…</p>
+      ) : inquiries.length === 0 ? (
+        <div style={{ ...tableWrap, padding: "2rem", textAlign: "center" }}>
+          <p style={{ color: "var(--text-muted)", fontSize: 13, margin: 0 }}>문의가 없습니다.</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {inquiries.map((inq) => {
+            const isOpen = expandedInq === inq.id;
+            return (
+              <div key={inq.id} style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", overflow: "hidden" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedInq(isOpen ? null : inq.id);
+                    setAnswerText(inq.answer);
+                    setAnswerMsg(null);
+                  }}
+                  style={{ width: "100%", background: "none", border: "none", padding: "12px 16px", cursor: "pointer", textAlign: "left", color: "inherit" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{
+                      display: "inline-block",
+                      padding: "2px 8px",
+                      borderRadius: 20,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: inq.status === "answered" ? "var(--success-subtle)" : "var(--warning)",
+                      color: inq.status === "answered" ? "var(--success)" : "#000",
+                    }}>
+                      {inq.status === "answered" ? "답변 완료" : "대기 중"}
+                    </span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{CATEGORY_LABELS[inq.category] ?? inq.category}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{fmtDate(inq.createdAt)}</span>
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>{inq.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{inq.name} · {maskPhone(inq.phone)}</div>
+                </button>
+
+                {isOpen && (
+                  <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)" }}>
+                    <div style={{ margin: "12px 0", fontSize: 13, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+                      {inq.content}
+                    </div>
+
+                    {inq.status === "answered" && inq.answer && (
+                      <div style={{
+                        marginBottom: 12,
+                        padding: "10px 14px",
+                        borderRadius: 10,
+                        background: "var(--accent-subtle)",
+                        borderLeft: "3px solid var(--accent)",
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--accent)", marginBottom: 4 }}>기존 답변</div>
+                        <div style={{ fontSize: 13, color: "var(--text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{inq.answer}</div>
+                      </div>
+                    )}
+
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+                      {inq.status === "answered" ? "답변 수정" : "답변 작성"}
+                    </label>
+                    <textarea
+                      value={answerText}
+                      onChange={(e) => setAnswerText(e.target.value)}
+                      placeholder="답변 내용을 입력하세요."
+                      rows={4}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid var(--border)",
+                        background: "var(--input-bg, var(--bg-elevated))",
+                        color: "var(--text-primary)",
+                        fontSize: 13,
+                        resize: "vertical",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => submitAnswer(inq.id)}
+                        disabled={answerBusy}
+                        style={{
+                          padding: "7px 20px",
+                          borderRadius: 10,
+                          border: "none",
+                          background: answerBusy ? "var(--text-muted)" : "var(--accent)",
+                          color: "#000",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: answerBusy ? "default" : "pointer",
+                        }}
+                      >
+                        {answerBusy ? "등록 중…" : "답변 등록"}
+                      </button>
+                      {answerMsg && <span style={{ fontSize: 12, color: "var(--danger)" }}>{answerMsg}</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

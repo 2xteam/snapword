@@ -16,6 +16,7 @@
     "mongodb": "^7.1.1",
     "mongoose": "^8.14.0",
     "next": "^15.2.4",
+    "nodemailer": "^8.0.7",
     "openai": "^6.34.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.14.0",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^8.57.1",
