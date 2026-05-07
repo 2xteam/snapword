@@ -21,6 +21,7 @@ export default function MyPage() {
   const [emailEditing, setEmailEditing] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [tokens, setTokens] = useState(0);
 
   const { themeId, custom, setTheme } = useTheme();
   const [customAccent, setCustomAccent] = useState(custom.accent);
@@ -41,6 +42,7 @@ export default function MyPage() {
       const json = (await res.json()) as {
         ok: boolean;
         email?: string;
+        tokens?: number;
         vocabularyCount?: number;
         testCount?: number;
         averageScore?: number | null;
@@ -50,6 +52,7 @@ export default function MyPage() {
         setTestCount(json.testCount ?? 0);
         setAvg(json.averageScore ?? null);
         setEmail(json.email ?? "");
+        setTokens(json.tokens ?? 0);
       }
       setLoaded(true);
     })();
@@ -262,10 +265,11 @@ export default function MyPage() {
       {!loaded ? (
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩중입니다…</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.6rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
           <StatCard label="단어장" value={String(vocabCount)} />
           <StatCard label="시험 횟수" value={String(testCount)} />
           <StatCard label="평균 점수" value={avg === null ? "—" : `${avg}점`} />
+          <StatCard label="보유 토큰" value={`${tokens}`} />
         </div>
       )}
 

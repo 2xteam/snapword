@@ -77,6 +77,26 @@ interface AdminInquiry {
   createdAt: string;
 }
 
+interface AdminNotice {
+  id: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  createdAt: string;
+}
+
+interface AdminEvent {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  rewardTokens: number;
+  maxPerUser: number;
+  active: boolean;
+  participantCount: number;
+  createdAt: string;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   bug: "버그 신고",
   feature: "기능 요청",
@@ -98,6 +118,22 @@ export default function AdminPage() {
   const [answerText, setAnswerText] = useState("");
   const [answerBusy, setAnswerBusy] = useState(false);
   const [answerMsg, setAnswerMsg] = useState<string | null>(null);
+
+  const [adminNotices, setAdminNotices] = useState<AdminNotice[]>([]);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticePinned, setNoticePinned] = useState(false);
+  const [noticeBusy, setNoticeBusy] = useState(false);
+  const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
+
+  const [adminEvents, setAdminEvents] = useState<AdminEvent[]>([]);
+  const [evTitle, setEvTitle] = useState("");
+  const [evDescription, setEvDescription] = useState("");
+  const [evCode, setEvCode] = useState("");
+  const [evReward, setEvReward] = useState("");
+  const [evMaxPerUser, setEvMaxPerUser] = useState("1");
+  const [evBusy, setEvBusy] = useState(false);
+  const [evMsg, setEvMsg] = useState<string | null>(null);
 
   const unlockRef = useRef(false);
 
@@ -131,6 +167,22 @@ export default function AdminPage() {
     setInqLoading(false);
   }, []);
 
+  const fetchNotices = useCallback(async (code: string) => {
+    try {
+      const res = await fetch(`/api/admin/notices?pin=${encodeURIComponent(code)}`);
+      const j = (await res.json()) as { ok: boolean; notices?: AdminNotice[] };
+      if (j.ok && j.notices) setAdminNotices(j.notices);
+    } catch { /* ignore */ }
+  }, []);
+
+  const fetchEvents = useCallback(async (code: string) => {
+    try {
+      const res = await fetch(`/api/admin/events?pin=${encodeURIComponent(code)}`);
+      const j = (await res.json()) as { ok: boolean; events?: AdminEvent[] };
+      if (j.ok && j.events) setAdminEvents(j.events);
+    } catch { /* ignore */ }
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -139,11 +191,17 @@ export default function AdminPage() {
       if (j.ok) setStats(j as Stats);
     } catch { /* ignore */ } finally { setLoading(false); }
     fetchInquiries(pin, inqFilter);
-  }, [pin, inqFilter, fetchInquiries]);
+    fetchNotices(pin);
+    fetchEvents(pin);
+  }, [pin, inqFilter, fetchInquiries, fetchNotices, fetchEvents]);
 
   useEffect(() => {
-    if (unlocked) fetchInquiries(pin, inqFilter);
-  }, [unlocked, inqFilter, pin, fetchInquiries]);
+    if (unlocked) {
+      fetchInquiries(pin, inqFilter);
+      fetchNotices(pin);
+      fetchEvents(pin);
+    }
+  }, [unlocked, inqFilter, pin, fetchInquiries, fetchNotices, fetchEvents]);
 
   const submitAnswer = useCallback(async (inquiryId: string) => {
     setAnswerBusy(true);
@@ -168,6 +226,82 @@ export default function AdminPage() {
       setAnswerBusy(false);
     }
   }, [pin, answerText, inqFilter, fetchInquiries]);
+
+  const submitNotice = useCallback(async () => {
+    if (!noticeTitle.trim() || !noticeContent.trim()) {
+      setNoticeMsg("제목과 내용을 입력해 주세요.");
+      return;
+    }
+    setNoticeBusy(true);
+    setNoticeMsg(null);
+    try {
+      const res = await fetch("/api/admin/notices", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pin, title: noticeTitle.trim(), content: noticeContent.trim(), pinned: noticePinned }),
+      });
+      const j = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !j.ok) { setNoticeMsg(j.error ?? "등록 실패"); return; }
+      setNoticeTitle("");
+      setNoticeContent("");
+      setNoticePinned(false);
+      fetchNotices(pin);
+    } catch { setNoticeMsg("네트워크 오류"); } finally { setNoticeBusy(false); }
+  }, [pin, noticeTitle, noticeContent, noticePinned, fetchNotices]);
+
+  const deleteNotice = useCallback(async (noticeId: string) => {
+    if (!confirm("이 공지를 삭제하시겠습니까?")) return;
+    try {
+      await fetch("/api/admin/notices", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pin, noticeId }),
+      });
+      fetchNotices(pin);
+    } catch { /* ignore */ }
+  }, [pin, fetchNotices]);
+
+  const submitEvent = useCallback(async () => {
+    if (!evTitle.trim() || !evCode.trim() || !evReward) {
+      setEvMsg("제목, 코드, 토큰 수를 입력해 주세요.");
+      return;
+    }
+    setEvBusy(true);
+    setEvMsg(null);
+    try {
+      const res = await fetch("/api/admin/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          pin,
+          title: evTitle.trim(),
+          description: evDescription.trim(),
+          code: evCode.trim(),
+          rewardTokens: Number(evReward),
+          maxPerUser: Number(evMaxPerUser) || 1,
+        }),
+      });
+      const j = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !j.ok) { setEvMsg(j.error ?? "등록 실패"); return; }
+      setEvTitle("");
+      setEvDescription("");
+      setEvCode("");
+      setEvReward("");
+      setEvMaxPerUser("1");
+      fetchEvents(pin);
+    } catch { setEvMsg("네트워크 오류"); } finally { setEvBusy(false); }
+  }, [pin, evTitle, evDescription, evCode, evReward, evMaxPerUser, fetchEvents]);
+
+  const toggleEvent = useCallback(async (eventId: string, active: boolean) => {
+    try {
+      await fetch("/api/admin/events", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pin, eventId, active }),
+      });
+      fetchEvents(pin);
+    } catch { /* ignore */ }
+  }, [pin, fetchEvents]);
 
   if (!unlocked) {
     return (
@@ -559,6 +693,113 @@ export default function AdminPage() {
           })}
         </div>
       )}
+
+      {/* 공지 관리 */}
+      <h2 style={sectionTitle}>공지 관리</h2>
+      <div style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", padding: "16px", marginBottom: 10 }}>
+        <label style={adminLab}>제목
+          <input value={noticeTitle} onChange={(e) => setNoticeTitle(e.target.value)} placeholder="공지 제목" style={adminInp} />
+        </label>
+        <label style={adminLab}>내용
+          <textarea value={noticeContent} onChange={(e) => setNoticeContent(e.target.value)} placeholder="공지 내용" rows={4} style={{ ...adminInp, resize: "vertical" }} />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>
+          <input type="checkbox" checked={noticePinned} onChange={(e) => setNoticePinned(e.target.checked)} />
+          상단 고정
+        </label>
+        <button type="button" onClick={submitNotice} disabled={noticeBusy} style={adminSubmitBtn(noticeBusy)}>
+          {noticeBusy ? "등록 중…" : "공지 등록"}
+        </button>
+        {noticeMsg && <p style={{ fontSize: 12, color: "var(--danger)", margin: "8px 0 0" }}>{noticeMsg}</p>}
+      </div>
+
+      {adminNotices.length > 0 && (
+        <div style={{ display: "grid", gap: 8 }}>
+          {adminNotices.map((n) => (
+            <div key={n.id} style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  {n.pinned && <span style={{ fontSize: 10, background: "var(--accent-subtle)", color: "var(--accent)", padding: "1px 6px", borderRadius: 10, fontWeight: 600 }}>고정</span>}
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtDate(n.createdAt)}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{n.title}</div>
+              </div>
+              <button type="button" onClick={() => deleteNotice(n.id)} style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--danger)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                삭제
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 이벤트 토큰 관리 */}
+      <h2 style={sectionTitle}>이벤트 토큰 관리</h2>
+      <div style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", padding: "16px", marginBottom: 10 }}>
+        <label style={adminLab}>이벤트 제목
+          <input value={evTitle} onChange={(e) => setEvTitle(e.target.value)} placeholder="이벤트 제목" style={adminInp} />
+        </label>
+        <label style={adminLab}>설명 (선택)
+          <input value={evDescription} onChange={(e) => setEvDescription(e.target.value)} placeholder="이벤트 설명" style={adminInp} />
+        </label>
+        <label style={adminLab}>참여 코드
+          <input value={evCode} onChange={(e) => setEvCode(e.target.value)} placeholder="사용자가 입력할 코드" style={adminInp} />
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <label style={adminLab}>보상 토큰
+            <input type="number" value={evReward} onChange={(e) => setEvReward(e.target.value)} placeholder="10" style={adminInp} />
+          </label>
+          <label style={adminLab}>1인당 참여 횟수
+            <input type="number" value={evMaxPerUser} onChange={(e) => setEvMaxPerUser(e.target.value)} placeholder="1" style={adminInp} />
+          </label>
+        </div>
+        <button type="button" onClick={submitEvent} disabled={evBusy} style={adminSubmitBtn(evBusy)}>
+          {evBusy ? "등록 중…" : "이벤트 등록"}
+        </button>
+        {evMsg && <p style={{ fontSize: 12, color: "var(--danger)", margin: "8px 0 0" }}>{evMsg}</p>}
+      </div>
+
+      {adminEvents.length > 0 && (
+        <div style={{ display: "grid", gap: 8 }}>
+          {adminEvents.map((ev) => (
+            <div key={ev.id} style={{ borderRadius: 14, background: "var(--bg-card)", border: "1px solid var(--border)", padding: "12px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  background: ev.active ? "var(--success-subtle)" : "var(--bg-elevated)",
+                  color: ev.active ? "var(--success)" : "var(--text-muted)",
+                }}>
+                  {ev.active ? "진행 중" : "종료"}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtDate(ev.createdAt)}</span>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{ev.title}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>
+                코드: <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>{ev.code}</code>
+                &nbsp;· 보상: {ev.rewardTokens}토큰 · 1인당 {ev.maxPerUser}회 · 참여자: {ev.participantCount}명
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleEvent(ev.id, !ev.active)}
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: ev.active ? "var(--bg-elevated)" : "var(--accent)",
+                  color: ev.active ? "var(--text-secondary)" : "#000",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {ev.active ? "이벤트 종료" : "이벤트 재개"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -711,3 +952,35 @@ const td: CSSProperties = {
   borderBottom: "1px solid var(--border)",
   whiteSpace: "nowrap",
 };
+
+const adminLab: CSSProperties = {
+  display: "grid",
+  gap: 4,
+  marginBottom: 10,
+  fontSize: 12,
+  fontWeight: 600,
+  color: "var(--text-secondary)",
+};
+
+const adminInp: CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--input-bg, var(--bg-elevated))",
+  color: "var(--text-primary)",
+  fontSize: 13,
+  fontFamily: "inherit",
+};
+
+function adminSubmitBtn(busy: boolean): CSSProperties {
+  return {
+    padding: "8px 20px",
+    borderRadius: 10,
+    border: "none",
+    background: busy ? "var(--text-muted)" : "var(--accent)",
+    color: "#000",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: busy ? "default" : "pointer",
+  };
+}

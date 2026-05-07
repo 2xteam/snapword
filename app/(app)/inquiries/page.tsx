@@ -27,10 +27,12 @@ function categoryLabel(v: string) {
   return CATEGORIES.find((c) => c.value === v)?.label ?? v;
 }
 
+type Tab = "list" | "new";
+
 export default function InquiriesPage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionUser | null>(null);
-  const [tab, setTab] = useState<"list" | "new">("list");
+  const [tab, setTab] = useState<Tab>("list");
 
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,27 +108,22 @@ export default function InquiriesPage() {
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
-      <h1 style={{ margin: 0, fontSize: "1.3rem", color: "var(--text-primary)" }}>문의하기</h1>
+      <h1 style={{ margin: 0, fontSize: "1.3rem", color: "var(--text-primary)" }}>Q&A</h1>
 
-      {/* Tab */}
       <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => setTab("list")}
-          style={tabBtn(tab === "list")}
-        >
-          문의 내역
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("new")}
-          style={tabBtn(tab === "new")}
-        >
-          새 문의 작성
-        </button>
+        {(["list", "new"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={tabBtn(tab === t)}
+          >
+            {{ list: "문의 내역", new: "새 문의 작성" }[t]}
+          </button>
+        ))}
       </div>
 
-      {tab === "new" ? (
+      {tab === "new" && (
         <div style={cardStyle}>
           <label style={lab}>
             카테고리
@@ -166,14 +163,16 @@ export default function InquiriesPage() {
             type="button"
             onClick={submit}
             disabled={busy}
-            style={submitBtn(busy)}
+            style={submitBtnStyle(busy)}
           >
             {busy ? "등록 중…" : "문의 등록"}
           </button>
 
           {msg ? <p style={{ margin: "0.75rem 0 0", color: "var(--danger)", fontSize: 13 }}>{msg}</p> : null}
         </div>
-      ) : (
+      )}
+
+      {tab === "list" && (
         <>
           {loading ? (
             <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩 중…</p>
@@ -192,15 +191,7 @@ export default function InquiriesPage() {
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : inq.id)}
-                      style={{
-                        width: "100%",
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        color: "inherit",
-                      }}
+                      style={expandBtn}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                         <span style={statusBadge(inq.status)}>
@@ -264,6 +255,16 @@ export default function InquiriesPage() {
   );
 }
 
+const expandBtn: CSSProperties = {
+  width: "100%",
+  background: "none",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  textAlign: "left",
+  color: "inherit",
+};
+
 function tabBtn(active: boolean): CSSProperties {
   return {
     padding: "0.55rem 1.1rem",
@@ -314,17 +315,17 @@ const inp: CSSProperties = {
   fontSize: 15,
 };
 
-function submitBtn(busy: boolean): CSSProperties {
+function submitBtnStyle(b: boolean): CSSProperties {
   return {
     width: "100%",
     marginTop: "0.25rem",
     padding: "0.85rem",
     borderRadius: "var(--radius-sm)",
     border: "none",
-    background: busy ? "var(--text-muted)" : "var(--accent)",
+    background: b ? "var(--text-muted)" : "var(--accent)",
     color: "#000",
     fontWeight: 600,
     fontSize: 15,
-    cursor: busy ? "default" : "pointer",
+    cursor: b ? "default" : "pointer",
   };
 }
