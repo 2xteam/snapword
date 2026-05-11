@@ -5,7 +5,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Markdown from "react-markdown";
 import { openFloatingChat } from "./FloatingChat";
 import { showToast } from "./Toast";
-import { loadSession } from "@/lib/session";
+import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
+import { loadSession, type SessionUser } from "@/lib/session";
 
 export interface WotdData {
   word: string;
@@ -212,6 +213,17 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
                   }
                 } catch { /* 캐시 조회 실패 시 채팅으로 fallback */ }
                 setAiLoading(false);
+                const s = loadSession();
+                if (IS_TOKEN_SYSTEM_ENABLED && s) {
+                  try {
+                    const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(s.id)}`);
+                    const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
+                    if (balJson.ok && (balJson.tokens ?? 0) < 1) {
+                      showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");
+                      return;
+                    }
+                  } catch { /* proceed */ }
+                }
                 const prompt = `오늘의 단어 "${data.word}" (${data.partOfSpeech})에 대해 더 알려줘! 뜻: ${data.definition}`;
                 handleClose();
                 openFloatingChat(prompt, data.word);

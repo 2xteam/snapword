@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "@/components/ThemeProvider";
+import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { PRESET_THEMES, type ThemeCustomColor, type ThemeId } from "@/lib/theme";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { InstallButton } from "@/components/InstallButton";
@@ -265,11 +266,17 @@ export default function MyPage() {
       {!loaded ? (
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩중입니다…</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: IS_TOKEN_SYSTEM_ENABLED ? "1fr 1fr" : "repeat(3, 1fr)",
+            gap: "0.6rem",
+          }}
+        >
           <StatCard label="단어장" value={String(vocabCount)} />
           <StatCard label="시험 횟수" value={String(testCount)} />
           <StatCard label="평균 점수" value={avg === null ? "—" : `${avg}점`} />
-          <StatCard label="보유 토큰" value={`${tokens}`} />
+          {IS_TOKEN_SYSTEM_ENABLED && <StatCard label="보유 토큰" value={`${tokens}`} />}
         </div>
       )}
 

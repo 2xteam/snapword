@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
+import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { openFloatingChat } from "@/components/FloatingChat";
+import { showToast } from "@/components/Toast";
 import { BouncingSmiley } from "@/components/BouncingSmiley";
 import { WaveText } from "@/components/WaveText";
 
@@ -206,6 +208,16 @@ export default function WrongWordsPage() {
                               }
                             } catch { /* fallback */ }
                             setAiLoading(null);
+                            if (IS_TOKEN_SYSTEM_ENABLED && session) {
+                              try {
+                                const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(session.id)}`);
+                                const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
+                                if (balJson.ok && (balJson.tokens ?? 0) < 1) {
+                                  showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");
+                                  return;
+                                }
+                              } catch { /* proceed */ }
+                            }
                             const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
                             openFloatingChat(prompt, word.word);
                           }}

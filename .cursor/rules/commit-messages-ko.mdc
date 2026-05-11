@@ -1,5 +1,6 @@
 ---
-description: Git·소스 제어 AI 커밋 메시지는 항상 한국어
+name: commit-message-korean
+description: Git 커밋 메시지 언어·형식·한글 타입 라벨 (자동 생성 포함)
 alwaysApply: true
 ---
 

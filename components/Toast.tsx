@@ -55,9 +55,9 @@ const FG: Record<ToastType, string> = {
 
 const container: CSSProperties = {
   position: "fixed",
-  top: 24,
+  top: "50%",
   left: "50%",
-  transform: "translateX(-50%)",
+  transform: "translate(-50%, -50%)",
   zIndex: 99999,
   display: "flex",
   flexDirection: "column",

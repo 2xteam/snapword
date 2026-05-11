@@ -4,7 +4,10 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { normalizeAiCacheKey } from "@/lib/aiCacheKey";
+import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { openFloatingChat } from "./FloatingChat";
+import { showToast } from "./Toast";
+import { loadSession } from "@/lib/session";
 
 export interface ModalFeedData {
   id: string;
@@ -144,6 +147,17 @@ export function RssDetailModal({
                     }
                   } catch { /* 캐시 조회 실패 시 채팅으로 fallback */ }
                   setAiLoading(false);
+                  const s = loadSession();
+                  if (IS_TOKEN_SYSTEM_ENABLED && s) {
+                    try {
+                      const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(s.id)}`);
+                      const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
+                      if (balJson.ok && (balJson.tokens ?? 0) < 1) {
+                        showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");
+                        return;
+                      }
+                    } catch { /* proceed */ }
+                  }
                   const plain = feed.item!.fullContent
                     .replace(/<[^>]+>/g, "")
                     .replace(/&[a-z]+;/gi, " ")

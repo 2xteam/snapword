@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { emptyVocabularyPayload, normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
 import { loadSession, type SessionUser } from "@/lib/session";
@@ -119,8 +120,19 @@ export default function VocabWordsEditPage() {
     setBusy("vision");
     setMsg(null);
     try {
+      if (IS_TOKEN_SYSTEM_ENABLED) {
+        const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(session.id)}`);
+        const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
+        if (balJson.ok && (balJson.tokens ?? 0) < 10) {
+          setMsgType("err");
+          setMsg(`아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요! (보유: ${balJson.tokens ?? 0}, 필요: 10)`);
+          setBusy(null);
+          return;
+        }
+      }
       const fd = new FormData();
       fd.set("file", file);
+      if (session.id) fd.set("userId", session.id);
       const res = await fetch("/api/openai-vision", { method: "POST", body: fd });
       const json = (await res.json()) as {
         ok: boolean;
