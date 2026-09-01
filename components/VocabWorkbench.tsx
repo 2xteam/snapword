@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { clearSession, loadSession, saveSession, type SessionUser } from "@/lib/session";
+import { checkUploadSize, shrinkImageForUpload } from "@/lib/clientImageResize";
 
 export function VocabWorkbench() {
   const [session, setSession] = useState<SessionUser | null>(null);
@@ -113,8 +114,16 @@ export function VocabWorkbench() {
     setBusy("vision");
     setMessage(null);
     try {
+      // Vercel Functions 본문 4.5MB 제한 + Vision 정확도를 고려해 업로드 전 축소
+      const shrunk = await shrinkImageForUpload(file);
+      const sizeCheck = checkUploadSize(shrunk);
+      if (!sizeCheck.ok) {
+        setMessage(sizeCheck.error);
+        return;
+      }
+
       const fd = new FormData();
-      fd.set("file", file);
+      fd.set("file", shrunk);
 
       const res = await fetch("/api/openai-vision", { method: "POST", body: fd });
       const json = (await res.json()) as {

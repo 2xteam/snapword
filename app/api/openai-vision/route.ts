@@ -5,7 +5,9 @@ import { readMultipartImage } from "@/lib/readMultipartImage";
 import { deductTokens } from "@/lib/useToken";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Hobby 플랜 상한이 60초다. 축소된 이미지(긴 변 2000px)의 Vision 처리는
+// 보통 5~20초로 충분하며, Pro로 올린 뒤에는 이 값을 늘려도 된다.
+export const maxDuration = 60;
 
 /**
  * 이미지를 OpenAI Vision으로 보내 단어 JSON(words) 생성.

@@ -8,6 +8,7 @@ import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { emptyVocabularyPayload, normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { checkUploadSize, shrinkImageForUpload } from "@/lib/clientImageResize";
 
 type WordRow = VocabularyPayload & { _id?: string };
 
@@ -130,8 +131,16 @@ export default function VocabWordsEditPage() {
           return;
         }
       }
+      // Vercel Functions 본문 4.5MB 제한 + Vision 정확도를 고려해 업로드 전 축소
+      const shrunk = await shrinkImageForUpload(file);
+      const sizeCheck = checkUploadSize(shrunk);
+      if (!sizeCheck.ok) {
+        setMsgType("err"); setMsg(sizeCheck.error);
+        return;
+      }
+
       const fd = new FormData();
-      fd.set("file", file);
+      fd.set("file", shrunk);
       if (session.id) fd.set("userId", session.id);
       const res = await fetch("/api/openai-vision", { method: "POST", body: fd });
       const json = (await res.json()) as {
