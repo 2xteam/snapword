@@ -185,7 +185,7 @@ export function TopNav() {
           <button
             type="button"
             onClick={() => { setOpen(false); logout(); }}
-            className="topnav-logout topnav-menu-logout"
+            className="topnav-menu-link topnav-menu-logout"
           >
             Logout
           </button>
