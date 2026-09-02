@@ -3,6 +3,7 @@ import { TopNav } from "@/components/TopNav";
 import { FloatingChat } from "@/components/FloatingChat";
 import { ToastContainer } from "@/components/Toast";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function AppShellLayout({
   children,
@@ -19,6 +20,7 @@ export default function AppShellLayout({
           }}
         >
           {children}
+          <SiteFooter />
         </div>
         <FloatingChat />
         <ToastContainer />
