@@ -17,6 +17,7 @@ const nav = [
 
 const otherApps = [
   { name: "SnapNote", iconUrl: "/snapnote-link-icon.png", href: "https://snapnote.myjane.co.kr/home" },
+  { name: "FitLog", iconUrl: "/fitlog-link-icon.png", href: "https://fitlog.myjane.co.kr/home" },
 ];
 
 export function TopNav() {
