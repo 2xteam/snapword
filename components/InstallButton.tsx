@@ -191,7 +191,7 @@ const stepNumStyle: CSSProperties = {
   height: 22,
   borderRadius: "50%",
   background: "var(--accent)",
-  color: "#000",
+  color: "var(--on-accent)",
   fontSize: 12,
   fontWeight: 700,
   display: "flex",

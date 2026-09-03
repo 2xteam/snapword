@@ -1,5 +1,4 @@
 import { AuthGate } from "@/components/AuthGate";
-import { ThemeProvider } from "@/components/ThemeProvider";
 import { TopNav } from "@/components/TopNav";
 import { FloatingChat } from "@/components/FloatingChat";
 import { ToastContainer } from "@/components/Toast";
@@ -11,7 +10,6 @@ export default function AppShellLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ThemeProvider>
       <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
         <TopNav />
         <div
@@ -28,6 +26,5 @@ export default function AppShellLayout({
         <ToastContainer />
         <OnboardingGuide />
       </div>
-    </ThemeProvider>
   );
 }

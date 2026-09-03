@@ -240,7 +240,7 @@ export default function PrintPage() {
             width: "100%",
             padding: "0.75rem",
             background: "var(--accent)",
-            color: "#000",
+            color: "var(--on-accent)",
             border: "none",
             fontWeight: 600,
           }}

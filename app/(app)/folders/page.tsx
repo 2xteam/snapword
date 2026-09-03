@@ -479,7 +479,7 @@ const btnPrimary: CSSProperties = {
   borderRadius: "var(--radius-sm)",
   border: "none",
   background: "var(--accent)",
-  color: "#000",
+  color: "var(--on-accent)",
   fontWeight: 600,
   cursor: "pointer",
   fontSize: 13,

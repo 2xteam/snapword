@@ -213,7 +213,7 @@ export default function TestPage() {
                 marginTop: "1rem",
                 width: "100%",
                 background: "var(--accent)",
-                color: "#000",
+                color: "var(--on-accent)",
                 border: "none",
                 fontWeight: 600,
               }}

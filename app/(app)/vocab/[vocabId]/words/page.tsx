@@ -399,7 +399,7 @@ const btnDangerAction: CSSProperties = {
 
 const btnAccent: CSSProperties = {
   padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
-  background: "var(--accent)", color: "#000", fontWeight: 600, cursor: "pointer", fontSize: 13,
+  background: "var(--accent)", color: "var(--on-accent)", fontWeight: 600, cursor: "pointer", fontSize: 13,
 };
 
 const btnCancel: CSSProperties = {
@@ -420,7 +420,8 @@ const dialogBoxStyle: CSSProperties = {
 
 const overlayFull: CSSProperties = {
   position: "fixed", inset: 0, zIndex: 300,
-  background: "rgba(10,10,15,0.85)",
+  // 다른 오버레이(0.55)와 같은 무게로 맞춘다
+  background: "rgba(0,0,0,0.55)",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 

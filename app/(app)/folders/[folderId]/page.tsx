@@ -331,7 +331,7 @@ const btnAction: CSSProperties = {
 
 const btnAccent: CSSProperties = {
   padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
-  background: "var(--accent)", color: "#000", fontWeight: 600,
+  background: "var(--accent)", color: "var(--on-accent)", fontWeight: 600,
   cursor: "pointer", fontSize: 13,
 };
 

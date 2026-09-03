@@ -34,14 +34,14 @@ export function WordOfTheDayCard({ data, compact }: { data: WotdData; compact?: 
       <>
         <button type="button" onClick={() => setOpen(true)} style={compactCard}>
           <span style={{ fontSize: 28 }}>📖</span>
-          <span style={{ fontSize: 17, fontWeight: 800, fontStyle: "italic", color: "#000" }}>{data.word}</span>
+          <span style={{ fontSize: 17, fontWeight: 800, fontStyle: "italic", color: "var(--on-accent)" }}>{data.word}</span>
           {data.pronunciation && (
-            <span style={{ fontSize: 10, color: "rgba(0,0,0,0.5)", fontStyle: "italic" }}>{data.pronunciation}</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", fontStyle: "italic" }}>{data.pronunciation}</span>
           )}
           {data.partOfSpeech && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(0,0,0,0.45)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{data.partOfSpeech}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.66)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{data.partOfSpeech}</span>
           )}
-          <span style={{ fontSize: 10, color: "rgba(0,0,0,0.55)", textAlign: "center", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never, overflow: "hidden" }}>{data.definition}</span>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.78)", textAlign: "center", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never, overflow: "hidden" }}>{data.definition}</span>
         </button>
         {open && <WotdModal data={data} onClose={() => setOpen(false)} />}
       </>
@@ -330,7 +330,7 @@ const card: CSSProperties = {
   borderRadius: "var(--radius-lg)",
   border: "none",
   background: "var(--accent)",
-  color: "#000",
+  color: "var(--on-accent)",
   cursor: "pointer",
   textAlign: "left",
 };
