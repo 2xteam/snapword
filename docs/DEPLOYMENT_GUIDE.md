@@ -132,8 +132,8 @@ SMTP_PASS=<gmail 앱 비밀번호 16자리>
 ### 4-3. 개발 서버 실행
 
 ```bash
-npm run dev          # http://localhost:3000
-npm run dev:https    # https://localhost:3000 (인증서 경고 허용 필요)
+npm run dev          # http://localhost:3001
+npm run dev:https    # https://localhost:3001 (인증서 경고 허용 필요)
 ```
 
 ### 4-4. 빌드 확인
