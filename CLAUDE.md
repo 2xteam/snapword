@@ -24,6 +24,7 @@
 
 ## 이 프로젝트 메모
 
+- 관리 화면은 **포털**에 있다(`www.myjane.co.kr/admin`). 여기엔 `/api/admin/*` 만 둔다 → `30-Patterns/통합 admin.md`
 - 이미지 업로드는 `30-Patterns/이미지 업로드 패턴.md`의 **② 업로드 전 클라이언트 축소** 방식
 - 회원은 `user` DB 공유 — `models/User.ts`의 `useDb("user")`
 
