@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
+import { requireAdminSecret } from "@/lib/adminApi";
 import { connectDB } from "@/lib/db";
 import { getEventModel, getApplicantModel } from "@/models/Event";
 
 export const runtime = "nodejs";
-const ADMIN_PIN = process.env.ADMIN_PIN || "1956";
+/*
+  예전에는 소스에 박힌 PIN을 쿼리스트링·본문으로 검사했다. 공개 저장소에 값이 있고
+  URL이라 접근 로그에도 남았다. 지금은 포털과 공유하는 비밀 하나로 확인한다.
+  → lib/adminApi.ts
+*/
 
 export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const pin = url.searchParams.get("pin") ?? "";
-    if (pin !== ADMIN_PIN) {
-      return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
-    }
+  const denied = requireAdminSecret(req);
+  if (denied) return denied;
 
+  try {
     await connectDB();
     const Event = getEventModel();
     const Applicant = getApplicantModel();
@@ -42,13 +44,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = requireAdminSecret(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
-    const pin = body.pin ?? "";
-    if (pin !== ADMIN_PIN) {
-      return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
-    }
-
     const title = (body.title ?? "").trim();
     const code = (body.code ?? "").trim();
     const rewardTokens = Number(body.rewardTokens) || 0;
@@ -69,13 +69,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const denied = requireAdminSecret(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
-    const pin = body.pin ?? "";
-    if (pin !== ADMIN_PIN) {
-      return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
-    }
-
     const eventId = body.eventId ?? "";
     const active = body.active;
     if (!eventId || typeof active !== "boolean") {

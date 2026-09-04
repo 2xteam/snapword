@@ -1,102 +1,99 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
+import { adminApiError, requireAdminSecret } from "@/lib/adminApi";
 import { getInquiryModel } from "@/models/Inquiry";
 
 export const runtime = "nodejs";
 
-const ADMIN_PIN = "1956";
+/**
+ * 문의 관리 — 통합 admin(포털)이 서버끼리 부른다.
+ * 응답 모양은 네 앱이 같다.
+ */
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  if (searchParams.get("pin") !== ADMIN_PIN) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+type InquiryRow = {
+  id: string;
+  name: string;
+  phone: string;
+  category: string;
+  title: string;
+  content: string;
+  status: string;
+  answer: string;
+  answeredAt: string | null;
+  createdAt: string | null;
+};
 
-  const status = searchParams.get("status") ?? "";
+const iso = (d: unknown): string | null => (d instanceof Date ? d.toISOString() : null);
 
-  await connectDB();
-  const Inquiry = getInquiryModel();
-
+async function list(status: string): Promise<InquiryRow[]> {
   const filter: Record<string, unknown> = {};
-  if (status === "pending" || status === "answered") {
-    filter.status = status;
-  }
+  if (status) filter.status = status;
 
-  const list = await Inquiry.find(filter)
+  const rows = await getInquiryModel()
+    .find(filter)
     .sort({ createdAt: -1 })
+    .limit(200)
     .lean()
     .exec();
 
-  return NextResponse.json({
-    ok: true,
-    inquiries: list.map((d) => ({
-      id: String(d._id),
-      name: d.name,
-      phone: d.phone,
-      category: d.category,
-      title: d.title,
-      content: d.content,
-      status: d.status,
-      answer: d.answer ?? "",
-      answeredAt: d.answeredAt ?? null,
-      createdAt: d.createdAt,
-    })),
-  });
+  return rows.map((q) => ({
+    id: String(q._id),
+    name: q.name ?? "",
+    phone: q.phone ?? "",
+    category: q.category ?? "",
+    title: q.title ?? "",
+    content: q.content ?? "",
+    status: q.status ?? "",
+    answer: q.answer ?? "",
+    answeredAt: iso(q.answeredAt),
+    createdAt: iso(q.createdAt),
+  }));
 }
 
-export async function PATCH(req: Request) {
+export async function GET(req: Request) {
+  const denied = requireAdminSecret(req);
+  if (denied) return denied;
+
   try {
-    let body: { pin?: string; inquiryId?: string; answer?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json(
-        { ok: false, error: "JSON 본문이 필요합니다." },
-        { status: 400 },
-      );
-    }
+    const status = new URL(req.url).searchParams.get("status") ?? "";
+    await connectDB();
+    return NextResponse.json({ ok: true, inquiries: await list(status) });
+  } catch (err) {
+    return adminApiError(err);
+  }
+}
 
-    if (body.pin !== ADMIN_PIN) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+/**
+ * 답변 달기.
+ *
+ * 답변을 쓰면 상태를 `answered`로 함께 올린다. 답변만 남고 상태가 `pending`으로
+ * 남아 있으면, 문의함에서 답이 달린 것을 다시 처리하게 된다.
+ */
+export async function PATCH(req: Request) {
+  const denied = requireAdminSecret(req);
+  if (denied) return denied;
 
-    const inquiryId = typeof body.inquiryId === "string" ? body.inquiryId : "";
+  try {
+    const body = (await req.json()) as { id?: unknown; answer?: unknown };
+    const id = typeof body.id === "string" ? body.id : "";
     const answer = typeof body.answer === "string" ? body.answer.trim() : "";
 
-    if (!inquiryId) {
-      return NextResponse.json(
-        { ok: false, error: "inquiryId가 필요합니다." },
-        { status: 400 },
-      );
-    }
-
+    if (!id) return NextResponse.json({ ok: false, error: "id가 필요합니다." }, { status: 400 });
     if (!answer) {
-      return NextResponse.json(
-        { ok: false, error: "답변 내용을 입력해 주세요." },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: "답변 내용을 입력해 주세요." }, { status: 400 });
     }
 
     await connectDB();
-    const Inquiry = getInquiryModel();
-    const doc = await Inquiry.findById(inquiryId).exec();
+    const hit = await getInquiryModel()
+      .updateOne({ _id: id }, { $set: { answer, status: "answered", answeredAt: new Date() } })
+      .exec();
 
-    if (!doc) {
-      return NextResponse.json(
-        { ok: false, error: "문의를 찾을 수 없습니다." },
-        { status: 404 },
-      );
+    if (hit.matchedCount === 0) {
+      return NextResponse.json({ ok: false, error: "문의를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    doc.answer = answer;
-    doc.status = "answered";
-    doc.answeredAt = new Date();
-    await doc.save();
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, inquiries: await list("") });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return adminApiError(err);
   }
 }
