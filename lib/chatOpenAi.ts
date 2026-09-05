@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { buildChatRagContext } from "@/lib/chatRagDocuments";
+import { ASK_USER_POLICY } from "@/lib/askUserTool";
 import { createOpenAiResponse, type ResponsesCreateUsage } from "@/lib/openAiConversations";
 
 const CHAT_INSTRUCTIONS = `당신은 SnapWord 앱의 "영어 학습 전용" 챗봇입니다.
@@ -36,16 +37,31 @@ export type ChatTurnResult = {
   usage: ResponsesCreateUsage | null;
 };
 
+/**
+ * 매 턴 보낼 지침 — 정책 + 질문에 맞는 참고 문서 + 되묻기 규칙.
+ * 스트리밍 라우트도 같은 지침을 쓴다. 두 경로가 다른 말을 하면 안 된다.
+ */
+export function buildChatInstructions(userText: string): string {
+  return mergeInstructionsWithRag(userText);
+}
+
 function mergeInstructionsWithRag(userText: string): string {
   const ragContext = buildChatRagContext(userText);
-  if (!ragContext.trim()) return CHAT_INSTRUCTIONS;
-  return [
-    CHAT_INSTRUCTIONS,
-    "",
-    "──── 참고 문서 (이번 사용자 질문에 맞게 검색됨) ────",
-    ragContext,
-  ].join("\n");
+  const parts = [CHAT_INSTRUCTIONS];
+  if (ragContext.trim()) {
+    parts.push("", RAG_HEADING, ragContext);
+  }
+
+  /*
+    되묻기 정책은 **맨 뒤**에 둔다.
+    앞에 붙이면 참고 문서 수천 자에 묻혀서 모델이 그냥 답해 버린다.
+    fitlog에서 실제로 확인한 함정이다.
+  */
+  parts.push("", "──── 답하기 전에 확인 ────", ASK_USER_POLICY);
+  return parts.join("\n");
 }
+
+const RAG_HEADING = "──── 참고 문서 (이번 사용자 질문에 맞게 검색됨) ────";
 
 /**
  * OpenAI Responses API + Conversations API로 한 턴 응답합니다.
