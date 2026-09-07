@@ -30,7 +30,6 @@ export default function LandingPage() {
         <main className="page">
           <Sheet
             tone="dark"
-            ornament
             eyebrow="SNAPWORD · VOCABULARY"
             headline={
               <>
