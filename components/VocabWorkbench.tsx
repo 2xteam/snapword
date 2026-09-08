@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { goConsentIfNeeded } from "@/lib/consentGate";
 import { signupUrl } from "@/lib/portal";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { clearSession, loadSession, saveSession, type SessionUser } from "@/lib/session";
@@ -98,6 +99,9 @@ export function VocabWorkbench() {
         words?: VocabularyPayload[];
         error?: string;
       };
+
+      /* 국외 이전 동의가 없다 — 동의 화면으로 보낸다 */
+      if (res.status === 412 && goConsentIfNeeded(json, "/dev")) return;
 
       if (!res.ok || !json.ok || !json.words?.length) {
         setPreviewText("");

@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { goConsentIfNeeded } from "@/lib/consentGate";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { emptyVocabularyPayload, normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
@@ -148,6 +149,9 @@ export default function VocabWordsEditPage() {
         words?: VocabularyPayload[];
         error?: string;
       };
+      /* 국외 이전 동의가 없다 — 동의 화면으로 보낸다 */
+      if (res.status === 412 && goConsentIfNeeded(json, "/home")) return;
+
       if (!res.ok || !json.ok || !json.words?.length) {
         setMsgType("err"); setMsg(json.error ?? "Vision 실패");
         return;
