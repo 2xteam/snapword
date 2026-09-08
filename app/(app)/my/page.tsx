@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AccountWithdrawLink } from "@/components/AccountWithdrawLink";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { InstallButton } from "@/components/InstallButton";
@@ -266,6 +267,8 @@ export default function MyPage() {
 
       {/* 바로가기 추가 */}
       <InstallButton />
+
+      <AccountWithdrawLink />
     </div>
   );
 }
