@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { signupUrl } from "@/lib/portal";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { clearSession, loadSession, saveSession, type SessionUser } from "@/lib/session";
 import { checkUploadSize, shrinkImageForUpload } from "@/lib/clientImageResize";
 
 export function VocabWorkbench() {
   const [session, setSession] = useState<SessionUser | null>(null);
-  const [regName, setRegName] = useState("");
-  const [regPhone, setRegPhone] = useState("");
-  const [regPin, setRegPin] = useState("");
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPin, setLoginPin] = useState("");
   const [vocabId, setVocabId] = useState("");
@@ -38,38 +36,6 @@ export function VocabWorkbench() {
     setMessage(null);
   }, []);
 
-  const register = useCallback(async () => {
-    setBusy("auth");
-    setMessage(null);
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name: regName,
-          phone: regPhone,
-          pin: regPin,
-          pinConfirm: regPin,
-        }),
-      });
-      const json = (await res.json()) as {
-        ok: boolean;
-        user?: SessionUser;
-        error?: string;
-      };
-      if (!res.ok || !json.ok || !json.user) {
-        setMessage(json.error ?? "회원가입에 실패했습니다.");
-        return;
-      }
-      saveSession(json.user);
-      setSession(json.user);
-      setMessage("가입 및 로그인되었습니다.");
-    } catch {
-      setMessage("회원가입 요청에 실패했습니다.");
-    } finally {
-      setBusy(null);
-    }
-  }, [regName, regPhone, regPin]);
 
   const login = useCallback(async () => {
     setBusy("auth");
@@ -227,28 +193,19 @@ export function VocabWorkbench() {
           </div>
         ) : (
           <div style={{ display: "grid", gap: "0.75rem" }}>
+            {/*
+              가입 폼을 두지 않는다. 이 페이지는 운영에서도 열려서(/dev)
+              **약관·개인정보 동의 없이 계정이 만들어지는 통로**였다.
+              가입은 포털에서만 받는다 → my-obsidian-vault / 50-Plans/C 법적 페이지.md
+            */}
             <div style={{ fontWeight: 600, fontSize: 14 }}>회원가입</div>
-            <div style={{ display: "grid", gap: "0.35rem" }}>
-              <input
-                placeholder="이름 (필수)"
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-              />
-              <input
-                placeholder="전화번호"
-                value={regPhone}
-                onChange={(e) => setRegPhone(e.target.value)}
-              />
-              <input
-                placeholder="PIN (4자 이상)"
-                type="password"
-                value={regPin}
-                onChange={(e) => setRegPin(e.target.value)}
-              />
-              <button type="button" onClick={register} disabled={busy !== null}>
-                가입
-              </button>
-            </div>
+            <p style={{ margin: 0, fontSize: 13, color: "#4b5563" }}>
+              가입은{" "}
+              <a href={signupUrl("/dev")} style={{ textDecoration: "underline" }}>
+                myjane 포털
+              </a>
+              에서만 할 수 있어요. 약관·개인정보 동의를 그곳에서 받습니다.
+            </p>
             <div style={{ fontWeight: 600, fontSize: 14, marginTop: "0.25rem" }}>로그인</div>
             <div style={{ display: "grid", gap: "0.35rem" }}>
               <input
