@@ -59,7 +59,7 @@ export default function TestPage() {
     if (!session || !vocabId) return;
     (async () => {
       const [dr, wr] = await Promise.all([
-        fetch(`/api/vocabularies/${vocabId}?phone=${encodeURIComponent(session.phone)}`),
+        fetch(`/api/vocabularies/${vocabId}`),
         fetch(`/api/words?vocabId=${encodeURIComponent(vocabId)}`),
       ]);
       const dj = (await dr.json()) as { ok: boolean; item?: { folderId: string } };
@@ -99,8 +99,6 @@ export default function TestPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          phone: session.phone,
-          userId: session.id,
           vocabId,
           folderId,
           answers,

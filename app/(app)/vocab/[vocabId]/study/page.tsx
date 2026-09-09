@@ -55,7 +55,7 @@ export default function StudyPage() {
     const [wr, tr] = await Promise.all([
       fetch(`/api/words?vocabId=${encodeURIComponent(vocabId)}`),
       fetch(
-        `/api/test-word-stats?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&vocabIds=${encodeURIComponent(vocabId)}`,
+        `/api/test-word-stats?vocabIds=${encodeURIComponent(vocabId)}`,
       ),
     ]);
     const wj = (await wr.json()) as { ok: boolean; items?: W[] };
@@ -224,7 +224,7 @@ export default function StudyPage() {
                               setAiLoading(null);
                               if (IS_TOKEN_SYSTEM_ENABLED && session) {
                                 try {
-                                  const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(session.id)}`);
+                                  const balRes = await fetch(`/api/token-balance`);
                                   const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
                                   if (balJson.ok && (balJson.tokens ?? 0) < 1) {
                                     showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");

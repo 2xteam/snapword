@@ -17,6 +17,8 @@ export default function MyPage() {
   const [loaded, setLoaded] = useState(false);
 
   const [email, setEmail] = useState<string>("");
+  /** 전화번호는 쿠키에 없다 — /api/me 로 받는다 */
+  const [phone, setPhone] = useState<string>("");
   const [emailInput, setEmailInput] = useState("");
   const [emailEditing, setEmailEditing] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
@@ -33,9 +35,12 @@ export default function MyPage() {
   useEffect(() => {
     if (!session) return;
     (async () => {
-      const res = await fetch(
-        `/api/stats/me?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}`,
-      );
+      /* 전화번호는 세션 쿠키에 없다 — 서버에서 받는다 → app/api/me */
+      void fetch("/api/me")
+        .then((r) => r.json() as Promise<{ ok: boolean; me?: { phone?: string | null } }>)
+        .then((j) => { if (j.ok) setPhone(j.me?.phone ?? ""); })
+        .catch(() => {});
+      const res = await fetch(`/api/stats/me`);
       const json = (await res.json()) as {
         ok: boolean;
         email?: string;
@@ -72,8 +77,6 @@ export default function MyPage() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          phone: session.phone,
-          userId: session.id,
           email: trimmed,
         }),
       });
@@ -115,7 +118,7 @@ export default function MyPage() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{session.name}</div>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{session.phone}</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{phone}</div>
           </div>
         </div>
 

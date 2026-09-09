@@ -23,7 +23,7 @@ export default function VocabHubPage() {
     if (!session || !vocabId) return;
     (async () => {
       const res = await fetch(
-        `/api/vocabularies/${vocabId}?phone=${encodeURIComponent(session.phone)}`,
+        `/api/vocabularies/${vocabId}`,
       );
       const json = (await res.json()) as { ok: boolean; item?: Deck };
       if (json.ok && json.item) setDeck(json.item);

@@ -74,7 +74,7 @@ export default function VocabWordsEditPage() {
       const res = await fetch("/api/words", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ vocabId, phone: session.phone, word: dialogRow.word.trim(), meaning: dialogRow.meaning, example: dialogRow.example, synonyms: dialogRow.synonyms, antonyms: dialogRow.antonyms }),
+        body: JSON.stringify({ vocabId, word: dialogRow.word.trim(), meaning: dialogRow.meaning, example: dialogRow.example, synonyms: dialogRow.synonyms, antonyms: dialogRow.antonyms }),
       });
       const json = (await res.json()) as { ok: boolean; duplicate?: boolean; message?: string; error?: string };
       if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.message ?? json.error ?? "저장 실패"); return; }
@@ -94,7 +94,7 @@ export default function VocabWordsEditPage() {
       const res = await fetch("/api/words", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ vocabId, phone: session.phone, words: visionRows.map(({ _id: _, ...w }) => w) }),
+        body: JSON.stringify({ vocabId, words: visionRows.map(({ _id: _, ...w }) => w) }),
       });
       const json = (await res.json()) as { ok: boolean; error?: string; count?: number; skipped?: string[] };
       if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.error ?? "저장 실패"); return; }
@@ -123,7 +123,7 @@ export default function VocabWordsEditPage() {
     setMsg(null);
     try {
       if (IS_TOKEN_SYSTEM_ENABLED) {
-        const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(session.id)}`);
+        const balRes = await fetch(`/api/token-balance`);
         const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
         if (balJson.ok && (balJson.tokens ?? 0) < 10) {
           setMsgType("err");
@@ -175,7 +175,7 @@ export default function VocabWordsEditPage() {
     const row = rows[deleteTarget];
     if (row._id) {
       const res = await fetch(
-        `/api/words/${row._id}?phone=${encodeURIComponent(session.phone)}`,
+        `/api/words/${row._id}`,
         { method: "DELETE" },
       );
       const json = (await res.json()) as { ok: boolean };
@@ -196,7 +196,7 @@ export default function VocabWordsEditPage() {
       const res = await fetch(`/api/words/${r._id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: session.phone, word: r.word, meaning: r.meaning, example: r.example, synonyms: r.synonyms, antonyms: r.antonyms }),
+        body: JSON.stringify({ word: r.word, meaning: r.meaning, example: r.example, synonyms: r.synonyms, antonyms: r.antonyms }),
       });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsgType("err"); setMsg(json.error ?? "수정 실패"); return; }

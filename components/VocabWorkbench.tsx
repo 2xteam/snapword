@@ -149,7 +149,6 @@ export function VocabWorkbench() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           vocabId: vocabId.trim(),
-          phone: session.phone,
           words: toSave,
         }),
       });
@@ -190,7 +189,7 @@ export function VocabWorkbench() {
         {session ? (
           <div style={{ display: "grid", gap: "0.5rem", fontSize: 14, color: "#374151" }}>
             <div>
-              로그인됨: <strong>{session.name}</strong> · {session.phone} · userId{" "}
+              로그인됨: <strong>{session.name}</strong> · userId{" "}
               <code>{session.id}</code>
             </div>
             <button type="button" onClick={logout} disabled={busy !== null}>

@@ -52,7 +52,7 @@ export default function WrongWordsPage() {
     if (!session) return;
     (async () => {
       const res = await fetch(
-        `/api/wrong-words?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&limit=50`,
+        `/api/wrong-words?limit=50`,
       );
       const json = (await res.json()) as { ok: boolean; items?: W[] };
       if (json.ok && json.items) setWords(json.items);
@@ -210,7 +210,7 @@ export default function WrongWordsPage() {
                             setAiLoading(null);
                             if (IS_TOKEN_SYSTEM_ENABLED && session) {
                               try {
-                                const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(session.id)}`);
+                                const balRes = await fetch(`/api/token-balance`);
                                 const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
                                 if (balJson.ok && (balJson.tokens ?? 0) < 1) {
                                   showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");

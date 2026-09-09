@@ -40,8 +40,8 @@ export default function FolderInsidePage() {
   const refresh = useCallback(
     async (s: SessionUser) => {
       const [fRes, cRes, vRes] = await Promise.all([
-        fetch(`/api/folders/${folderId}?phone=${encodeURIComponent(s.phone)}`),
-        fetch(`/api/folders?phone=${encodeURIComponent(s.phone)}&parentId=${encodeURIComponent(folderId)}`),
+        fetch(`/api/folders/${folderId}`),
+        fetch(`/api/folders?parentId=${encodeURIComponent(folderId)}`),
         fetch(`/api/vocabularies?folderId=${encodeURIComponent(folderId)}`),
       ]);
       const fj = (await fRes.json()) as { ok: boolean; item?: FolderRow };
@@ -77,31 +77,31 @@ export default function FolderInsidePage() {
     setMsg(null);
 
     if (dialog.type === "deleteFolder") {
-      const res = await fetch(`/api/folders/${dialog.id}?phone=${encodeURIComponent(session.phone)}`, { method: "DELETE" });
+      const res = await fetch(`/api/folders/${dialog.id}`, { method: "DELETE" });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "삭제 실패"); return; }
     } else if (dialog.type === "deleteDeck") {
-      const res = await fetch(`/api/vocabularies/${dialog.id}?phone=${encodeURIComponent(session.phone)}`, { method: "DELETE" });
+      const res = await fetch(`/api/vocabularies/${dialog.id}`, { method: "DELETE" });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "삭제 실패"); return; }
     } else {
       if (!dialogName.trim()) return;
       if (dialog.type === "createFolder") {
-        const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
+        const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "createDeck") {
-        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, phone: session.phone, name: dialogName.trim(), description: "", createdBy: session.id }) });
+        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, name: dialogName.trim(), description: "", createdBy: session.id }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "renameFolder") {
-        const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
+        const res = await fetch(`/api/folders/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim() }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
       } else if (dialog.type === "renameDeck") {
-        const res = await fetch(`/api/vocabularies/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: session.phone, name: dialogName.trim() }) });
+        const res = await fetch(`/api/vocabularies/${dialog.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim() }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "수정 실패"); return; }
       }

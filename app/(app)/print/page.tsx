@@ -44,7 +44,7 @@ export default function PrintPage() {
   useEffect(() => {
     if (!session) return;
     (async () => {
-      const res = await fetch(`/api/vocabularies?phone=${encodeURIComponent(session.phone)}`);
+      const res = await fetch(`/api/vocabularies`);
       const json = (await res.json()) as { ok: boolean; items?: Deck[] };
       if (json.ok && json.items) setDecks(json.items);
     })();
@@ -65,7 +65,7 @@ export default function PrintPage() {
     loadingRef.current = true;
     try {
       const statsRes = await fetch(
-        `/api/test-word-stats?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&vocabIds=${selectedVocabIds.join(",")}`,
+        `/api/test-word-stats?vocabIds=${selectedVocabIds.join(",")}`,
       );
       const sj = (await statsRes.json()) as {
         ok: boolean;

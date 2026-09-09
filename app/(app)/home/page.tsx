@@ -37,9 +37,9 @@ export default function HomePage() {
     if (!session) return;
     (async () => {
       const [fRes, vRes, wRes] = await Promise.all([
-        fetch(`/api/folders?phone=${encodeURIComponent(session.phone)}&parentId=`),
-        fetch(`/api/vocabularies?phone=${encodeURIComponent(session.phone)}`),
-        fetch(`/api/wrong-words?phone=${encodeURIComponent(session.phone)}&userId=${encodeURIComponent(session.id)}&limit=50`),
+        fetch(`/api/folders?parentId=`),
+        fetch(`/api/vocabularies`),
+        fetch(`/api/wrong-words?limit=50`),
       ]);
       const fj = (await fRes.json()) as { ok: boolean; items?: FolderRow[] };
       const vj = (await vRes.json()) as { ok: boolean; items?: DeckRow[] };

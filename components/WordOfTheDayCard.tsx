@@ -103,7 +103,7 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
     try {
       const s = loadSession();
       if (!s) return;
-      const res = await fetch(`/api/vocabularies?phone=${encodeURIComponent(s.phone)}`);
+      const res = await fetch(`/api/vocabularies`);
       const j = (await res.json()) as { ok: boolean; items?: DeckOption[] };
       if (j.ok && j.items) setDecks(j.items);
     } catch { /* ignore */ } finally { setDecksLoading(false); }
@@ -119,7 +119,6 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vocabId: deckId,
-          phone: s.phone,
           word: data.word,
           meaning: data.definition,
           example: data.example || "",
@@ -216,7 +215,7 @@ function WotdModal({ data, onClose }: { data: WotdData; onClose: () => void }) {
                 const s = loadSession();
                 if (IS_TOKEN_SYSTEM_ENABLED && s) {
                   try {
-                    const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(s.id)}`);
+                    const balRes = await fetch(`/api/token-balance`);
                     const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
                     if (balJson.ok && (balJson.tokens ?? 0) < 1) {
                       showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");

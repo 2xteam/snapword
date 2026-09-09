@@ -150,7 +150,7 @@ export function RssDetailModal({
                   const s = loadSession();
                   if (IS_TOKEN_SYSTEM_ENABLED && s) {
                     try {
-                      const balRes = await fetch(`/api/token-balance?userId=${encodeURIComponent(s.id)}`);
+                      const balRes = await fetch(`/api/token-balance`);
                       const balJson = (await balRes.json()) as { ok: boolean; tokens?: number };
                       if (balJson.ok && (balJson.tokens ?? 0) < 1) {
                         showToast("아쉽지만 토큰이 부족하여 진행하기 어렵습니다. 토큰을 충전해보세요!", "warn");
