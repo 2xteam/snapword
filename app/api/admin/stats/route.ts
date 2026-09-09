@@ -96,7 +96,8 @@ export async function GET(req: Request) {
         .aggregate([
           { $match: { deletedAt: null } },
           { $lookup: { from: "words", localField: "_id", foreignField: "vocabId", as: "w" } },
-          { $group: { _id: "$phone", decks: { $sum: 1 }, wc: { $sum: { $size: "$w" } } } },
+          // 2026-09-09: 소유자 키가 phone → createdBy. 새 문서에는 phone 이 비어 있다
+          { $group: { _id: "$createdBy", decks: { $sum: 1 }, wc: { $sum: { $size: "$w" } } } },
           { $sort: { wc: -1 } },
           { $limit: 10 },
         ])
@@ -105,7 +106,7 @@ export async function GET(req: Request) {
       if (top.length) {
         tables.push({
           title: "단어를 많이 모은 사람",
-          columns: ["전화(뒤 4자리)", "단어장", "단어"],
+          columns: ["회원(id 뒤 4자리)", "단어장", "단어"],
           rows: top.map((r) => [
             r._id ? String(r._id).slice(-4) : "—",
             r.decks ?? 0,

@@ -1,32 +1,32 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { Folder } from "@/models/Folder";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
 
 export const runtime = "nodejs";
 
+/*
+  소유자는 `viewer.uid` 하나다. 쿼리·본문의 `phone` 은 옛 화면이
+  아직 보내지만 읽지 않는다 → lib/auth.ts
+*/
+
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const phone = normalizePhone(url.searchParams.get("phone") ?? "");
-    if (!phone) {
-      return NextResponse.json(
-        { ok: false, error: "phone 쿼리가 필요합니다." },
-        { status: 400 },
-      );
-    }
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
 
     await connectDB();
 
     const [folders, decks] = await Promise.all([
-      Folder.find({ phone, deletedAt: { $ne: null } })
+      Folder.find({ createdBy: viewer.uid, deletedAt: { $ne: null } })
         .sort({ deletedAt: -1 })
         .limit(200)
         .lean()
         .exec(),
-      VocabularyDeck.find({ phone, deletedAt: { $ne: null } })
+      VocabularyDeck.find({ createdBy: viewer.uid, deletedAt: { $ne: null } })
         .sort({ deletedAt: -1 })
         .limit(200)
         .lean()
@@ -35,29 +35,27 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, folders, decks });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+    const owner = viewer.uid;
+
     const body = (await req.json()) as {
-      phone?: string;
       action?: "restore" | "permanentDelete";
       type?: "folder" | "deck";
       id?: string;
     };
 
-    const phone = normalizePhone(body.phone ?? "");
     const { action, type, id } = body;
 
-    if (!phone || !action || !type || !id || !mongoose.isValidObjectId(id)) {
-      return NextResponse.json(
-        { ok: false, error: "phone, action, type, id가 필요합니다." },
-        { status: 400 },
-      );
+    if (!action || !type || !id || !mongoose.isValidObjectId(id)) {
+      return badRequest("action, type, id가 필요합니다.");
     }
 
     await connectDB();
@@ -66,18 +64,16 @@ export async function POST(req: Request) {
     if (action === "restore") {
       if (type === "folder") {
         const folder = await Folder.findOneAndUpdate(
-          { _id: oid, phone, deletedAt: { $ne: null } },
+          { _id: oid, createdBy: owner, deletedAt: { $ne: null } },
           { $set: { deletedAt: null } },
         ).exec();
-        if (!folder) {
-          return NextResponse.json({ ok: false, error: "폴더를 찾을 수 없습니다." }, { status: 404 });
-        }
+        if (!folder) return notFound("폴더를 찾을 수 없습니다.");
         await VocabularyDeck.updateMany(
-          { folderId: oid, phone, deletedAt: { $ne: null } },
+          { folderId: oid, createdBy: owner, deletedAt: { $ne: null } },
           { $set: { deletedAt: null } },
         ).exec();
         async function restoreChildren(parentId: mongoose.Types.ObjectId) {
-          const children = await Folder.find({ parentFolderId: parentId, phone, deletedAt: { $ne: null } }).exec();
+          const children = await Folder.find({ parentFolderId: parentId, createdBy: owner, deletedAt: { $ne: null } }).exec();
           for (const child of children) {
             await Folder.updateOne({ _id: child._id }, { $set: { deletedAt: null } }).exec();
             await VocabularyDeck.updateMany({ folderId: child._id, deletedAt: { $ne: null } }, { $set: { deletedAt: null } }).exec();
@@ -87,24 +83,20 @@ export async function POST(req: Request) {
         await restoreChildren(oid);
       } else {
         const deck = await VocabularyDeck.findOneAndUpdate(
-          { _id: oid, phone, deletedAt: { $ne: null } },
+          { _id: oid, createdBy: owner, deletedAt: { $ne: null } },
           { $set: { deletedAt: null } },
         ).exec();
-        if (!deck) {
-          return NextResponse.json({ ok: false, error: "단어장을 찾을 수 없습니다." }, { status: 404 });
-        }
+        if (!deck) return notFound("단어장을 찾을 수 없습니다.");
       }
       return NextResponse.json({ ok: true });
     }
 
     if (action === "permanentDelete") {
       if (type === "folder") {
-        const folder = await Folder.findOne({ _id: oid, phone, deletedAt: { $ne: null } }).exec();
-        if (!folder) {
-          return NextResponse.json({ ok: false, error: "폴더를 찾을 수 없습니다." }, { status: 404 });
-        }
+        const folder = await Folder.findOne({ _id: oid, createdBy: owner, deletedAt: { $ne: null } }).exec();
+        if (!folder) return notFound("폴더를 찾을 수 없습니다.");
         async function hardDeleteChildren(parentId: mongoose.Types.ObjectId) {
-          const children = await Folder.find({ parentFolderId: parentId, phone }).exec();
+          const children = await Folder.find({ parentFolderId: parentId, createdBy: owner }).exec();
           for (const child of children) {
             await VocabularyDeck.deleteMany({ folderId: child._id }).exec();
             await hardDeleteChildren(child._id);
@@ -115,18 +107,14 @@ export async function POST(req: Request) {
         await hardDeleteChildren(oid);
         await Folder.deleteOne({ _id: oid }).exec();
       } else {
-        const deck = await VocabularyDeck.findOneAndDelete({ _id: oid, phone, deletedAt: { $ne: null } }).exec();
-        if (!deck) {
-          return NextResponse.json({ ok: false, error: "단어장을 찾을 수 없습니다." }, { status: 404 });
-        }
+        const deck = await VocabularyDeck.findOneAndDelete({ _id: oid, createdBy: owner, deletedAt: { $ne: null } }).exec();
+        if (!deck) return notFound("단어장을 찾을 수 없습니다.");
       }
       return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ ok: false, error: "action은 restore 또는 permanentDelete여야 합니다." }, { status: 400 });
+    return badRequest("action은 restore 또는 permanentDelete여야 합니다.");
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import {
   normalizeVocabularyPayload,
   type VocabularyPayload,
@@ -11,19 +11,31 @@ import { Word } from "@/models/Word";
 
 export const runtime = "nodejs";
 
+/*
+  단어는 소유자를 직접 갖지 않는다. 부모 단어장의 `createdBy` 가 `viewer.uid` 인지로
+  가른다. 본문의 `phone` 은 옛 화면이 아직 보내지만 읽지 않는다 → lib/auth.ts
+*/
+
+/** 내 단어장인지 확인한다. 남의 것이거나 없으면 null */
+async function findOwnedDeck(vocabId: string, uid: string) {
+  return VocabularyDeck.findOne({ _id: vocabId, createdBy: uid }).exec();
+}
+
 export async function GET(req: Request) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     const url = new URL(req.url);
     const vocabId = url.searchParams.get("vocabId") ?? "";
-    if (!mongoose.isValidObjectId(vocabId)) {
-      return NextResponse.json(
-        { ok: false, error: "vocabId 쿼리가 필요합니다." },
-        { status: 400 },
-      );
-    }
+    if (!mongoose.isValidObjectId(vocabId)) return badRequest("vocabId 쿼리가 필요합니다.");
 
     await connectDB();
-    const items = await Word.find({ vocabId })
+    const deck = await findOwnedDeck(vocabId, viewer.uid);
+    if (!deck) return notFound("단어장을 찾을 수 없습니다.");
+
+    const items = await Word.find({ vocabId: deck._id })
       .sort({ createdAt: -1 })
       .limit(500)
       .lean()
@@ -31,77 +43,60 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, items });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }
 
-type SaveWordBody = VocabularyPayload & { vocabId?: string; phone?: string };
+type SaveWordBody = VocabularyPayload & { vocabId: string };
 
 function validateWordPayload(body: unknown): SaveWordBody | null {
   if (!body || typeof body !== "object") return null;
   const o = body as Record<string, unknown>;
   if (Array.isArray(o.words)) return null;
   const vocabId = typeof o.vocabId === "string" ? o.vocabId.trim() : "";
-  const phone = typeof o.phone === "string" ? o.phone : "";
   const normalized = normalizeVocabularyPayload(body);
   if (!mongoose.isValidObjectId(vocabId) || !normalized.word.trim()) {
     return null;
   }
-  return { ...normalized, vocabId, phone };
+  return { ...normalized, vocabId };
 }
 
 function validateBatchPayload(body: unknown): {
   vocabId: string;
-  phone: string;
   words: VocabularyPayload[];
 } | null {
   if (!body || typeof body !== "object") return null;
   const o = body as Record<string, unknown>;
   if (!Array.isArray(o.words)) return null;
   const vocabId = typeof o.vocabId === "string" ? o.vocabId.trim() : "";
-  const phone = typeof o.phone === "string" ? o.phone : "";
-  if (!mongoose.isValidObjectId(vocabId) || !phone.trim()) return null;
+  if (!mongoose.isValidObjectId(vocabId)) return null;
   const words = o.words
     .map((item) => normalizeVocabularyPayload(item))
     .filter((w) => w.word.trim().length > 0);
   if (words.length === 0) return null;
-  return { vocabId, phone, words };
+  return { vocabId, words };
 }
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     let body: unknown;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { ok: false, error: "JSON 본문이 필요합니다." },
-        { status: 400 },
-      );
+      return badRequest("JSON 본문이 필요합니다.");
     }
 
     const batch = validateBatchPayload(body);
     if (batch) {
-      const phone = normalizePhone(batch.phone);
-      if (!phone) {
-        return NextResponse.json(
-          { ok: false, error: "phone이 필요합니다." },
-          { status: 400 },
-        );
-      }
-
       await connectDB();
-      const deck = await VocabularyDeck.findById(batch.vocabId).exec();
-      if (!deck || deck.phone !== phone) {
-        return NextResponse.json(
-          { ok: false, error: "단어장을 찾을 수 없거나 phone이 일치하지 않습니다." },
-          { status: 403 },
-        );
-      }
+      const deck = await findOwnedDeck(batch.vocabId, viewer.uid);
+      if (!deck) return notFound("단어장을 찾을 수 없습니다.");
 
-      const vid = new mongoose.Types.ObjectId(batch.vocabId);
+      const vid = deck._id;
 
       const existingWords = await Word.find({ vocabId: vid })
         .select("word")
@@ -136,36 +131,16 @@ export async function POST(req: Request) {
 
     const payload = validateWordPayload(body);
     if (!payload) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "단건: vocabId, phone, word 필드. 다건: vocabId, phone, words(배열) 형식이 필요합니다.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const phone = normalizePhone(
-      typeof payload.phone === "string" ? payload.phone : "",
-    );
-    if (!phone) {
-      return NextResponse.json(
-        { ok: false, error: "phone이 필요합니다." },
-        { status: 400 },
+      return badRequest(
+        "단건: vocabId, word 필드. 다건: vocabId, words(배열) 형식이 필요합니다.",
       );
     }
 
     await connectDB();
-    const deck = await VocabularyDeck.findById(payload.vocabId).exec();
-    if (!deck || deck.phone !== phone) {
-      return NextResponse.json(
-        { ok: false, error: "단어장을 찾을 수 없거나 phone이 일치하지 않습니다." },
-        { status: 403 },
-      );
-    }
+    const deck = await findOwnedDeck(payload.vocabId, viewer.uid);
+    if (!deck) return notFound("단어장을 찾을 수 없습니다.");
 
-    const vid = new mongoose.Types.ObjectId(payload.vocabId);
+    const vid = deck._id;
     const trimmedWord = payload.word.trim();
 
     const duplicate = await Word.findOne({
@@ -194,8 +169,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, id: String(doc._id) });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

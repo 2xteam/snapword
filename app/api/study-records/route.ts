@@ -1,68 +1,49 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { StudyRecord } from "@/models/StudyRecord";
-import { getUserModel } from "@/models/User";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
 import { Word } from "@/models/Word";
 
 export const runtime = "nodejs";
 
+/*
+  기록의 소유자(`userId`)는 `viewer.uid` 하나다. 본문·쿼리의 `phone`·`userId` 는
+  옛 화면이 아직 보내지만 읽지 않는다 → lib/auth.ts
+*/
+
 export async function POST(req: Request) {
   try {
-    let body: {
-      phone?: string;
-      userId?: string;
-      wordId?: string;
-      outcome?: "correct" | "wrong";
-    };
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
+    let body: { wordId?: string; outcome?: "correct" | "wrong" };
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { ok: false, error: "JSON 본문이 필요합니다." },
-        { status: 400 },
-      );
+      return badRequest("JSON 본문이 필요합니다.");
     }
 
-    const phone = normalizePhone(typeof body.phone === "string" ? body.phone : "");
-    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
     const wordId = typeof body.wordId === "string" ? body.wordId.trim() : "";
     const outcome = body.outcome;
 
-    if (!phone || !mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(wordId)) {
-      return NextResponse.json(
-        { ok: false, error: "phone, userId, wordId가 필요합니다." },
-        { status: 400 },
-      );
-    }
-
+    if (!mongoose.isValidObjectId(wordId)) return badRequest("wordId가 필요합니다.");
     if (outcome !== "correct" && outcome !== "wrong") {
-      return NextResponse.json(
-        { ok: false, error: "outcome은 correct 또는 wrong 이어야 합니다." },
-        { status: 400 },
-      );
+      return badRequest("outcome은 correct 또는 wrong 이어야 합니다.");
     }
 
     await connectDB();
-    const user = await getUserModel().findById(userId).exec();
-    if (!user || user.phone !== phone) {
-      return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
-    }
 
+    // 단어는 소유자를 직접 갖지 않는다 — 부모 단어장이 내 것인지 본다
     const word = await Word.findById(wordId).exec();
-    if (!word) {
-      return NextResponse.json({ ok: false, error: "단어를 찾을 수 없습니다." }, { status: 404 });
-    }
+    if (!word) return notFound("단어를 찾을 수 없습니다.");
+    const deck = await VocabularyDeck.findOne({ _id: word.vocabId, createdBy: viewer.uid }).exec();
+    if (!deck) return notFound("단어를 찾을 수 없습니다.");
 
-    const deck = await VocabularyDeck.findById(word.vocabId).exec();
-    if (!deck || deck.phone !== phone) {
-      return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
-    }
-
-    const uid = new mongoose.Types.ObjectId(userId);
-    const wid = new mongoose.Types.ObjectId(wordId);
+    const uid = new mongoose.Types.ObjectId(viewer.uid);
+    const wid = word._id;
     const now = new Date();
     const inc =
       outcome === "correct"
@@ -88,24 +69,19 @@ export async function POST(req: Request) {
       wrongCount: doc?.wrongCount ?? 0,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }
 
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get("userId") ?? "";
-    const vocabId = url.searchParams.get("vocabId") ?? "";
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
 
-    if (!mongoose.isValidObjectId(userId)) {
-      return NextResponse.json(
-        { ok: false, error: "userId 쿼리가 필요합니다." },
-        { status: 400 },
-      );
-    }
+    const url = new URL(req.url);
+    const vocabId = url.searchParams.get("vocabId") ?? "";
+    const uid = new mongoose.Types.ObjectId(viewer.uid);
 
     await connectDB();
     if (mongoose.isValidObjectId(vocabId)) {
@@ -116,23 +92,19 @@ export async function GET(req: Request) {
         .lean()
         .exec();
       const ids = wordIds.map((w) => w._id);
-      const items = await StudyRecord.find({
-        userId: new mongoose.Types.ObjectId(userId),
-        wordId: { $in: ids },
-      })
+      // 기록 자체가 내 것으로 좁혀지므로 남의 단어장 id 를 넣어도 빈 배열이다
+      const items = await StudyRecord.find({ userId: uid, wordId: { $in: ids } })
         .lean()
         .exec();
       return NextResponse.json({ ok: true, items });
     }
 
-    const items = await StudyRecord.find({ userId: new mongoose.Types.ObjectId(userId) })
+    const items = await StudyRecord.find({ userId: uid })
       .limit(2000)
       .lean()
       .exec();
     return NextResponse.json({ ok: true, items });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

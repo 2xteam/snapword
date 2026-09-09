@@ -25,7 +25,8 @@ export function VocabWorkbench() {
 
   const canSave = useMemo(() => {
     return Boolean(
-      session?.phone &&
+      // 이메일만으로 가입한 회원은 phone 이 비어 있다. 로그인 여부만 본다
+      session &&
         vocabId.trim() &&
         words.length > 0 &&
         words.some((w) => w.word.trim().length > 0),
@@ -50,13 +51,14 @@ export function VocabWorkbench() {
       const json = (await res.json()) as {
         ok: boolean;
         user?: SessionUser;
+        token?: string;
         error?: string;
       };
       if (!res.ok || !json.ok || !json.user) {
         setMessage(json.error ?? "로그인에 실패했습니다.");
         return;
       }
-      saveSession(json.user);
+      saveSession(json.user, json.token);
       setSession(json.user);
       setMessage("로그인되었습니다.");
     } catch {

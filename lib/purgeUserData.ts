@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { ChatThread } from "@/models/ChatThread";
+import { deleteOpenAiConversations } from "@/lib/purgeOpenAiConversations";
 import { getEventModel } from "@/models/Event";
 import { Folder } from "@/models/Folder";
 import { getInquiryModel } from "@/models/Inquiry";
@@ -51,11 +52,20 @@ export async function purgeUserData(id: string): Promise<PurgeResult> {
   const sessions = await TestSession.deleteMany({ userId: oid }).exec();
   const folders = await Folder.deleteMany({ createdBy: oid }).exec();
   const records = await StudyRecord.deleteMany({ userId: oid }).exec();
+  /*
+    대화 본문은 OpenAI Conversations 에만 있다. 스레드를 지우기 **전에** 그쪽 삭제를
+    요청한다 — 행을 지운 뒤에는 대화 id 를 찾을 수 없다. 실패해도 DB 삭제는 계속한다.
+    → lib/purgeOpenAiConversations.ts
+  */
+  const threadRows = await ChatThread.find({ userId: oid }, { openAiConversationId: 1 }).lean().exec();
+  const conversations = await deleteOpenAiConversations(threadRows.map((t) => t.openAiConversationId));
   const threads = await ChatThread.deleteMany({ userId: oid }).exec();
   const events = await getEventModel().deleteMany({ userId: oid }).exec();
   const inquiries = await getInquiryModel().deleteMany({ userId: oid }).exec();
 
   return {
+    openAiConversations: conversations.deleted,
+    openAiConversationsFailed: conversations.failed,
     words: words.deletedCount ?? 0,
     decks: decks.deletedCount ?? 0,
     testResults: testResults.deletedCount ?? 0,

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { requireViewer, badRequest, serverError } from "@/lib/auth";
 import { vocabularyFromPlainText } from "@/lib/llm";
 import { normalizeRequestInstructions } from "@/lib/openaiInstructions";
 import { isOpenAiApiKeyAuthError, isOpenAiKeyConfigured } from "@/lib/openaiKey";
+import { requireConsents } from "@/lib/requireConsent";
 
 export const runtime = "nodejs";
 // OpenAI 응답 지연 대비 (Vercel 기본값은 플랜에 따라 10~15초)
@@ -15,6 +17,10 @@ const MAX_CHARS = 16_000;
  */
 export async function POST(req: Request) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     if (!isOpenAiKeyConfigured()) {
       return NextResponse.json(
         {
@@ -26,23 +32,22 @@ export async function POST(req: Request) {
       );
     }
 
+    /*
+      국외 이전 동의를 **서버에서** 본다. 텍스트가 OpenAI(미국)로 나간다.
+      OpenAI 에 무엇이든 보내기 전에 막아야 한다 → lib/requireConsent.ts
+    */
+    const consentDenied = await requireConsents(viewer.uid, ["overseas"]);
+    if (consentDenied) return consentDenied;
+
     let body: { text?: string; instructions?: string };
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { ok: false, error: "JSON 본문이 필요합니다." },
-        { status: 400 },
-      );
+      return badRequest("JSON 본문이 필요합니다.");
     }
 
     const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (!text) {
-      return NextResponse.json(
-        { ok: false, error: "text 필드에 내용을 넣어 주세요." },
-        { status: 400 },
-      );
-    }
+    if (!text) return badRequest("text 필드에 내용을 넣어 주세요.");
     if (text.length > MAX_CHARS) {
       return NextResponse.json(
         { ok: false, error: `text는 최대 ${MAX_CHARS}자까지 지원합니다.` },
@@ -69,8 +74,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: message }, { status: 502 });
     }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

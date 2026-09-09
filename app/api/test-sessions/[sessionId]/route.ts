@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
+import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { TestResult } from "@/models/TestResult";
 import { TestSession } from "@/models/TestSession";
 import { Word } from "@/models/Word";
@@ -8,31 +9,24 @@ import { Word } from "@/models/Word";
 export const runtime = "nodejs";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     const { sessionId } = await params;
-    if (!mongoose.isValidObjectId(sessionId)) {
-      return NextResponse.json(
-        { ok: false, error: "유효하지 않은 sessionId입니다." },
-        { status: 400 },
-      );
-    }
+    if (!mongoose.isValidObjectId(sessionId)) return badRequest("유효하지 않은 sessionId입니다.");
 
     await connectDB();
 
-    const session = await TestSession.findById(sessionId).lean().exec();
-    if (!session) {
-      return NextResponse.json(
-        { ok: false, error: "세션을 찾을 수 없습니다." },
-        { status: 404 },
-      );
-    }
+    // 예전에는 id 만 알면 누구 세션이든 볼 수 있었다. 내 것만 준다
+    const session = await TestSession.findOne({ _id: sessionId, userId: viewer.uid }).lean().exec();
+    if (!session) return notFound("세션을 찾을 수 없습니다.");
 
-    const results = await TestResult.find({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-    })
+    const results = await TestResult.find({ sessionId: session._id })
       .lean()
       .exec();
 
@@ -69,8 +63,6 @@ export async function GET(
       items,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

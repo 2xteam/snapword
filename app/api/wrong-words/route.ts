@@ -1,37 +1,31 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, serverError } from "@/lib/auth";
 import { TestResult } from "@/models/TestResult";
 import { TestSession } from "@/models/TestSession";
-import { getUserModel } from "@/models/User";
 import { Word } from "@/models/Word";
 
 export const runtime = "nodejs";
 
+/*
+  요청자는 `viewer.uid` 하나다. 쿼리의 `phone`·`userId` 는 옛 화면이
+  아직 보내지만 읽지 않는다 → lib/auth.ts
+*/
 export async function GET(req: Request) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     const url = new URL(req.url);
-    const phone = normalizePhone(url.searchParams.get("phone") ?? "");
-    const userId = url.searchParams.get("userId") ?? "";
     const limitParam = parseInt(url.searchParams.get("limit") ?? "30", 10);
     const limit = Math.min(Math.max(limitParam, 1), 100);
 
-    if (!phone || !mongoose.isValidObjectId(userId)) {
-      return NextResponse.json(
-        { ok: false, error: "phone, userId가 필요합니다." },
-        { status: 400 },
-      );
-    }
-
     await connectDB();
-    const user = await getUserModel().findById(userId).exec();
-    if (!user || user.phone !== phone) {
-      return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
-    }
 
     const sessions = await TestSession.find({
-      userId: new mongoose.Types.ObjectId(userId),
+      userId: new mongoose.Types.ObjectId(viewer.uid),
     })
       .select("_id")
       .lean()
@@ -85,8 +79,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, items, hasTests: true });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

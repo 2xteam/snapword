@@ -1,31 +1,28 @@
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, notFound, serverError } from "@/lib/auth";
 import { TestResult } from "@/models/TestResult";
 import { TestSession } from "@/models/TestSession";
-import { getUserModel } from "@/models/User";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
 
 export const runtime = "nodejs";
 
 /**
  * 단어장(vocab) 단위로 테스트 응시 횟수·오답 수 집계 (단어별).
- * 쿼리: phone, userId, vocabIds (쉼표 구분 ObjectId)
+ * 쿼리: vocabIds (쉼표 구분 ObjectId)
+ *
+ * 요청자는 `viewer.uid` 하나다. 쿼리의 `phone`·`userId` 는 옛 화면이
+ * 아직 보내지만 읽지 않는다 → lib/auth.ts
  */
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const phone = normalizePhone(url.searchParams.get("phone") ?? "");
-    const userId = url.searchParams.get("userId") ?? "";
-    const vocabIdsRaw = url.searchParams.get("vocabIds") ?? "";
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
 
-    if (!phone || !mongoose.isValidObjectId(userId)) {
-      return NextResponse.json(
-        { ok: false, error: "phone, userId가 필요합니다." },
-        { status: 400 },
-      );
-    }
+    const url = new URL(req.url);
+    const vocabIdsRaw = url.searchParams.get("vocabIds") ?? "";
 
     const vocabIds = vocabIdsRaw
       .split(",")
@@ -38,23 +35,16 @@ export async function GET(req: Request) {
     }
 
     await connectDB();
-    const user = await getUserModel().findById(userId).exec();
-    if (!user || user.phone !== phone) {
-      return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
-    }
 
-    for (const vid of vocabIds) {
-      const deck = await VocabularyDeck.findById(vid).exec();
-      if (!deck || deck.phone !== phone) {
-        return NextResponse.json(
-          { ok: false, error: "단어장 권한이 없습니다." },
-          { status: 403 },
-        );
-      }
-    }
+    // 하나라도 내 것이 아니면 전체를 404 로 — 있는지조차 알려주지 않는다
+    const owned = await VocabularyDeck.countDocuments({
+      _id: { $in: vocabIds },
+      createdBy: viewer.uid,
+    }).exec();
+    if (owned !== vocabIds.length) return notFound("단어장을 찾을 수 없습니다.");
 
     const sessions = await TestSession.find({
-      userId: new mongoose.Types.ObjectId(userId),
+      userId: new mongoose.Types.ObjectId(viewer.uid),
       vocabId: { $in: vocabIds },
     })
       .select("_id")
@@ -92,8 +82,6 @@ export async function GET(req: Request) {
       })),
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }

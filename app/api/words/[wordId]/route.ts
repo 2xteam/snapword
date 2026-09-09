@@ -1,7 +1,7 @@
 import mongoose, { type HydratedDocument } from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { normalizePhone } from "@/lib/phone";
+import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
 import { Word, type WordDocument } from "@/models/Word";
@@ -10,36 +10,27 @@ export const runtime = "nodejs";
 
 type WordHydrated = HydratedDocument<WordDocument>;
 
+/**
+ * 단어는 소유자를 직접 갖지 않는다. 부모 단어장의 `createdBy` 가 요청자인지로
+ * 가른다. 남의 단어면 403 이 아니라 **404** — 있는지조차 알려주지 않는다.
+ */
 async function assertWordAccess(
   wordId: string,
-  phone: string,
+  uid: string,
 ): Promise<{ ok: true; word: WordHydrated } | { ok: false; response: NextResponse }> {
-  const p = normalizePhone(phone);
-  if (!mongoose.isValidObjectId(wordId) || !p) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { ok: false, error: "wordId, phone이 필요합니다." },
-        { status: 400 },
-      ),
-    };
+  if (!mongoose.isValidObjectId(wordId)) {
+    return { ok: false, response: badRequest("wordId가 필요합니다.") };
   }
 
   await connectDB();
   const word = await Word.findById(wordId).exec();
   if (!word) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "단어를 찾을 수 없습니다." }, { status: 404 }),
-    };
+    return { ok: false, response: notFound("단어를 찾을 수 없습니다.") };
   }
 
-  const deck = await VocabularyDeck.findById(word.vocabId).exec();
-  if (!deck || deck.phone !== p) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 }),
-    };
+  const deck = await VocabularyDeck.findOne({ _id: word.vocabId, createdBy: uid }).exec();
+  if (!deck) {
+    return { ok: false, response: notFound("단어를 찾을 수 없습니다.") };
   }
 
   return { ok: true, word };
@@ -50,34 +41,24 @@ export async function PATCH(
   ctx: { params: Promise<{ wordId: string }> },
 ) {
   try {
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
+
     const { wordId } = await ctx.params;
-    let body: { phone?: string } & Record<string, unknown>;
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { ok: false, error: "JSON 본문이 필요합니다." },
-        { status: 400 },
-      );
+      return badRequest("JSON 본문이 필요합니다.");
     }
 
-    const phone = typeof body.phone === "string" ? body.phone : "";
-    const access = await assertWordAccess(wordId, phone);
+    const access = await assertWordAccess(wordId, viewer.uid);
     if (!access.ok) return access.response;
 
     const n = normalizeVocabularyPayload(body);
-    if (!n.word.trim()) {
-      return NextResponse.json(
-        { ok: false, error: "word(표제어)는 필수입니다." },
-        { status: 400 },
-      );
-    }
-    if (!n.meaning.trim()) {
-      return NextResponse.json(
-        { ok: false, error: "meaning(설명)은 필수입니다." },
-        { status: 400 },
-      );
-    }
+    if (!n.word.trim()) return badRequest("word(표제어)는 필수입니다.");
+    if (!n.meaning.trim()) return badRequest("meaning(설명)은 필수입니다.");
 
     access.word.set({
       word: n.word.trim(),
@@ -90,9 +71,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, id: wordId });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -101,18 +80,17 @@ export async function DELETE(
   ctx: { params: Promise<{ wordId: string }> },
 ) {
   try {
-    const { wordId } = await ctx.params;
-    const url = new URL(req.url);
-    const phone = url.searchParams.get("phone") ?? "";
+    const auth = await requireViewer(req);
+    if ("error" in auth) return auth.error;
+    const { viewer } = auth;
 
-    const access = await assertWordAccess(wordId, phone);
+    const { wordId } = await ctx.params;
+    const access = await assertWordAccess(wordId, viewer.uid);
     if (!access.ok) return access.response;
 
     await Word.deleteOne({ _id: access.word._id }).exec();
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return serverError(err);
   }
 }
