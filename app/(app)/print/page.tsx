@@ -11,6 +11,7 @@ import {
   type McqQuestion,
   type WordForMcq,
 } from "@/lib/testMcq";
+import { languageOfWord, wordFontSize } from "@/lib/studyLanguage";
 
 type Deck = { _id: string; name: string; folderId?: string };
 type WordRow = {
@@ -142,7 +143,7 @@ export default function PrintPage() {
     const qs = buildMcqQuestionsForPrint(chosen.map(toWordForMcq), pool);
     if (qs.length === 0) {
       window.alert(
-        "인쇄할 문제를 만들 수 없습니다. 설명·예문·동의어·반의어 중 최소 하나가 있는 단어만 문제를 만들 수 있습니다.",
+        "인쇄할 문제를 만들 수 없습니다. 설명(훈음·뜻)·예문·동의어·반의어 중 최소 하나가 있는 단어만 문제를 만들 수 있습니다.",
       );
       return;
     }
@@ -223,7 +224,7 @@ export default function PrintPage() {
                 style={{ marginTop: 2 }}
               />
               <span>
-                <strong>{w.word}</strong>
+                <strong style={{ fontSize: wordFontSize(w.word, 14) }}>{w.word}</strong>
                 <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>
                   오답 {w.wrongCount} / 시도 {w.attempts}
                 </span>
@@ -266,7 +267,7 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   const blocks = qs
     .map((q, i) => {
       return `<div class="q">
-  <div class="line1"><span class="qnum">${i + 1}.</span> <span class="tag">${escapeHtml(clueTypeLabelKo(q.type))}</span> ${escapeHtml(q.clue)}</div>
+  <div class="line1"><span class="qnum">${i + 1}.</span> <span class="tag">${escapeHtml(clueTypeLabelKo(q.type, languageOfWord(q.answer)))}</span> ${escapeHtml(q.clue)}</div>
   <div class="answer-blank"></div>
 </div>`;
     })
@@ -275,7 +276,7 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   const answerRows = qs
     .map(
       (q, i) =>
-        `<tr><td class="anum">${i + 1}</td><td class="aword">${escapeHtml(q.answer)}</td></tr>`,
+        `<tr><td class="anum">${i + 1}</td><td class="aword${languageOfWord(q.answer) === "hanja" ? " hanja" : ""}">${escapeHtml(q.answer)}</td></tr>`,
     )
     .join("");
 
@@ -297,9 +298,10 @@ function buildFillInPrintHtml(qs: McqQuestion[]): string {
   .answer-table td { padding: 5px 10px; border-bottom: 1px solid #ddd; font-size: 13px; }
   .anum { width: 40px; font-weight: 700; color: #555; text-align: center; }
   .aword { font-weight: 700; color: #1d4ed8; }
+  .aword.hanja { font-size: 2em; }
   @media print { body { margin: 0; } .answer-page { break-before: page; } }
 </style></head><body>
-<h1>SnapWord — 단어 연습지</h1>
+<h1>SnapWord — ${qs.every((q) => languageOfWord(q.answer) === "hanja") ? "한자" : "단어"} 연습지</h1>
 ${blocks}
 <div class="answer-page">
   <h2>정답</h2>

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
-import { naverDictionaryUrl } from "@/lib/studyLanguage";
+import { explainWordPrompt, languageOfWord, naverDictionaryUrl, openInNewWindow, WORD_FIELD_LABELS, wordFontSize } from "@/lib/studyLanguage";
 import { openFloatingChat } from "@/components/FloatingChat";
 import { showToast } from "@/components/Toast";
 import { BouncingSmiley } from "@/components/BouncingSmiley";
@@ -170,7 +170,7 @@ export default function WrongWordsPage() {
                   <BouncingSmiley score={smileyScore} seed={word._id} paused={isFlipped} />
                   <div style={{ position: "relative", zIndex: 1, textAlign: "center", paddingTop: "1.5rem" }}>
                     <div style={{ color: isFlipped ? "var(--danger)" : "var(--text-primary)" }}>
-                      <WaveText text={word.word} active={isFlipped} fontSize="1.8rem" />
+                      <WaveText text={word.word} active={isFlipped} fontSize={wordFontSize(word.word, "1.8rem")} />
                     </div>
                     <span style={{ display: "inline-block", marginTop: 6, padding: "2px 10px", borderRadius: 999, background: "var(--danger-subtle)", color: "var(--danger)", fontSize: 11, fontWeight: 600 }}>
                       오답 {word.wrongCount}회
@@ -180,18 +180,18 @@ export default function WrongWordsPage() {
                       onClick={() => toggleFlip(word._id)}
                       style={flipBtnStyle}
                     >
-                      {isFlipped ? "접기" : "뜻·예문 보기"}
+                      {isFlipped ? "접기" : languageOfWord(word.word) === "hanja" ? "훈음·뜻 보기" : "뜻·예문 보기"}
                     </button>
                   </div>
 
                   {isFlipped && (
                     <div style={{ position: "relative", zIndex: 1, fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
-                      <p><strong style={{ color: "var(--text-primary)" }}>설명</strong> {word.meaning}</p>
-                      {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>예문</strong> {word.example}</p> : null}
-                      {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>동의어</strong> {word.synonyms.join(", ")}</p> : null}
-                      {word.antonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>반의어</strong> {word.antonyms.join(", ")}</p> : null}
+                      <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[languageOfWord(word.word)].meaning}</strong> {word.meaning}</p>
+                      {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[languageOfWord(word.word)].example}</strong> {word.example}</p> : null}
+                      {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[languageOfWord(word.word)].synonyms}</strong> {word.synonyms.join(", ")}</p> : null}
+                      {word.antonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[languageOfWord(word.word)].antonyms}</strong> {word.antonyms.join(", ")}</p> : null}
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                        <a href={DICT(word.word)} target="_blank" rel="noreferrer" style={dictBtnStyle}>
+                        <a href={DICT(word.word)} target="_blank" rel="noreferrer" onClick={(e) => openInNewWindow(e, DICT(word.word))} style={dictBtnStyle}>
                           사전 (Naver)
                         </a>
                         <button
@@ -200,7 +200,7 @@ export default function WrongWordsPage() {
                           onClick={async () => {
                             setAiLoading(word._id);
                             try {
-                              const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}`);
+                              const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}&language=${languageOfWord(word.word)}`);
                               const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
                               if (j.ok && j.hit && j.answer) {
                                 setAiCache((prev) => ({ ...prev, [word._id]: j.answer! }));
@@ -219,8 +219,9 @@ export default function WrongWordsPage() {
                                 }
                               } catch { /* proceed */ }
                             }
-                            const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
-                            openFloatingChat(prompt, word.word);
+                            // 채팅도 이 단어의 학습 언어 대화방에서 묻는다
+                            const prompt = explainWordPrompt(word.word, languageOfWord(word.word));
+                            openFloatingChat(prompt, word.word, languageOfWord(word.word));
                           }}
                           style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
                         >

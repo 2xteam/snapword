@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
-import { naverDictionaryUrl } from "@/lib/studyLanguage";
+import { explainWordPrompt, naverDictionaryUrl, openInNewWindow, WORD_FIELD_LABELS, wordFontSize } from "@/lib/studyLanguage";
+import { useDeckLanguage } from "@/lib/useDeckLanguage";
 import { openFloatingChat } from "@/components/FloatingChat";
 import { showToast } from "@/components/Toast";
 import { BouncingSmiley } from "@/components/BouncingSmiley";
@@ -41,6 +42,8 @@ export default function StudyPage() {
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [aiCache, setAiCache] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<string | null>(null);
+  // 칸 이름·AI 질문·채팅 언어를 단어장 언어로 고른다
+  const deckLanguage = useDeckLanguage(vocabId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,7 +195,7 @@ export default function StudyPage() {
                   <BouncingSmiley score={smileyScore} seed={word._id} paused={isFlipped} />
                   <div style={{ position: "relative", zIndex: 1, textAlign: "center", paddingTop: "1.5rem" }}>
                     <div style={{ color: isFlipped ? "var(--accent)" : "var(--text-primary)" }}>
-                      <WaveText text={word.word} active={isFlipped} fontSize={wc >= 3 ? "1.8rem" : "1.5rem"} />
+                      <WaveText text={word.word} active={isFlipped} fontSize={wordFontSize(word.word, wc >= 3 ? "1.8rem" : "1.5rem")} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20, flexWrap: "wrap", justifyContent: "center" }}>
                       {!isFlipped ? (
@@ -201,11 +204,11 @@ export default function StudyPage() {
                           onClick={() => toggleFlip(word._id)}
                           style={flipBtnStyle}
                         >
-                          뜻·예문 보기
+                          {deckLanguage === "hanja" ? "훈음·뜻 보기" : "뜻·예문 보기"}
                         </button>
                       ) : (
                         <>
-                          <a href={DICT(word.word)} target="_blank" rel="noreferrer" style={dictBtnStyle}>
+                          <a href={DICT(word.word)} target="_blank" rel="noreferrer" onClick={(e) => openInNewWindow(e, DICT(word.word))} style={dictBtnStyle}>
                             사전 (Naver)
                           </a>
                           <button
@@ -214,7 +217,7 @@ export default function StudyPage() {
                             onClick={async () => {
                               setAiLoading(word._id);
                               try {
-                                const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}`);
+                                const res = await fetch(`/api/ai-cache?word=${encodeURIComponent(word.word)}&language=${deckLanguage}`);
                                 const j = (await res.json()) as { ok: boolean; hit?: boolean; answer?: string };
                                 if (j.ok && j.hit && j.answer) {
                                   setAiCache((prev) => ({ ...prev, [word._id]: j.answer! }));
@@ -233,8 +236,9 @@ export default function StudyPage() {
                                   }
                                 } catch { /* proceed */ }
                               }
-                              const prompt = `${word.word} 에 대해서 더 자세히 설명해줘`;
-                              openFloatingChat(prompt, word.word);
+                              // 채팅도 이 단어의 학습 언어 대화방에서 묻는다
+                              const prompt = explainWordPrompt(word.word, deckLanguage);
+                              openFloatingChat(prompt, word.word, deckLanguage);
                             }}
                             style={{ ...aiBtnStyle, opacity: aiLoading === word._id ? 0.6 : 1 }}
                           >
@@ -262,10 +266,10 @@ export default function StudyPage() {
 
                   {isFlipped && (
                     <div style={{ position: "relative", zIndex: 1, fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem", overflowY: "auto", flex: 1 }}>
-                      <p><strong style={{ color: "var(--text-primary)" }}>설명</strong> {word.meaning}</p>
-                      {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>예문</strong> {word.example}</p> : null}
-                      {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>동의어</strong> {word.synonyms.join(", ")}</p> : null}
-                      {word.antonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>반의어</strong> {word.antonyms.join(", ")}</p> : null}
+                      <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[deckLanguage].meaning}</strong> {word.meaning}</p>
+                      {word.example ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[deckLanguage].example}</strong> {word.example}</p> : null}
+                      {word.synonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[deckLanguage].synonyms}</strong> {word.synonyms.join(", ")}</p> : null}
+                      {word.antonyms.length ? <p><strong style={{ color: "var(--text-primary)" }}>{WORD_FIELD_LABELS[deckLanguage].antonyms}</strong> {word.antonyms.join(", ")}</p> : null}
                       {aiCache[word._id] && (
                         <div style={aiAnswerWrap}>
                           <div style={aiAnswerHeader}>

@@ -6,6 +6,7 @@ import { buildChatInstructions, generateChatSubjectLine } from "@/lib/chatOpenAi
 import { isOpenAiKeyConfigured } from "@/lib/openaiKey";
 import { createOpenAiConversation, streamOpenAiResponse } from "@/lib/openAiConversations";
 import { requireConsents } from "@/lib/requireConsent";
+import { normalizeStudyLanguage } from "@/lib/studyLanguage";
 import { ChatThread, type ChatThreadDocument } from "@/models/ChatThread";
 import { deductTokens } from "@/lib/useToken";
 import { ASK_USER_TOOL, parseAskUser } from "@/lib/askUserTool";
@@ -118,7 +119,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ threadId: stri
 
         // 질문에 맞는 참고 문서를 고른다 (카탈로그에서 생성된 청크)
         send({ type: "stage", stage: "knowledge" });
-        const instructions = buildChatInstructions(text);
+        const instructions = buildChatInstructions(text, normalizeStudyLanguage(thread.language));
 
         send({ type: "stage", stage: "thinking" });
 
@@ -167,7 +168,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ threadId: stri
         let threadTitle: string | null = null;
         const currentTitle = (thread.title ?? "").trim();
         if (!asked && (!currentTitle || currentTitle === "새 대화")) {
-          const subject = await generateChatSubjectLine(text);
+          const subject = await generateChatSubjectLine(text, normalizeStudyLanguage(thread.language));
           if (subject) {
             thread.title = subject;
             threadTitle = subject;

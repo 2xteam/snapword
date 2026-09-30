@@ -5,15 +5,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { STUDY_LANGUAGE_LABEL, type StudyLanguage } from "@/lib/studyLanguage";
+import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type Thread = { _id: string; title: string; updatedAt: string };
 type Msg = { _id: string; role: string; content: string; createdAt: string };
 
 const DRAFT_ID = "__draft__";
 
-export function openFloatingChat(message: string, cacheWord?: string) {
+/**
+ * 채팅을 열고 첫 질문을 보낸다.
+ * `language` 를 넘기면 그 학습 언어의 새 대화방에서 묻는다(단어장 카드의 "AI에게 질문").
+ * 없으면 홈에서 고른 언어다.
+ */
+export function openFloatingChat(message: string, cacheWord?: string, language?: StudyLanguage) {
   window.dispatchEvent(
-    new CustomEvent("floating-chat-send", { detail: { message, cacheWord } }),
+    new CustomEvent("floating-chat-send", { detail: { message, cacheWord, language } }),
   );
 }
 
@@ -38,6 +45,15 @@ export function FloatingChat() {
   const bottom = useRef<HTMLDivElement>(null);
   const pendingMsg = useRef<string | null>(null);
   const cacheWord = useRef<string | null>(null);
+  /*
+    이 채팅창의 학습 언어. 열 때 정한다 — 홈에서 고른 언어, 또는 카드가 넘긴 단어장 언어.
+    대화방 목록·새 대화방·제안 칩·첫 안내가 모두 이 값으로 갈린다.
+    서버는 대화방에 저장된 언어로 지시문을 고른다(ChatThread.language).
+  */
+  const { language: homeLanguage } = useStudyLanguage();
+  const homeLanguageRef = useRef(homeLanguage);
+  homeLanguageRef.current = homeLanguage;
+  const [chatLanguage, setChatLanguage] = useState<StudyLanguage>(homeLanguage);
 
   useEffect(() => {
     const s = loadSession();
@@ -57,21 +73,21 @@ export function FloatingChat() {
   /** 제안 칩. 실패해도 대화는 그대로 쓸 수 있어야 하니 조용히 넘어간다 */
   const loadChips = useCallback(async (started: boolean) => {
     try {
-      const res = await fetch(`/api/chat/suggestions?started=${started ? "1" : "0"}`);
+      const res = await fetch(`/api/chat/suggestions?started=${started ? "1" : "0"}&language=${chatLanguage}`);
       const json = (await res.json()) as { ok: boolean; chips?: Array<{ text: string }> };
       if (json.ok && json.chips) setChips(json.chips.map((c) => c.text));
     } catch {
       /* 제안은 있으면 좋은 것이지 없으면 안 되는 것이 아니다 */
     }
-  }, []);
+  }, [chatLanguage]);
 
   const loadThreads = useCallback(async (s: SessionUser) => {
     const res = await fetch(
-      `/api/chat/threads`,
+      `/api/chat/threads?language=${chatLanguage}`,
     );
     const json = (await res.json()) as { ok: boolean; items?: Thread[] };
     if (json.ok && json.items) setThreads(json.items);
-  }, []);
+  }, [chatLanguage]);
 
   const fetchMessages = useCallback(
     async (s: SessionUser, threadId: string) => {
@@ -114,7 +130,7 @@ export function FloatingChat() {
     (async () => {
       await refreshTokenBalance(session);
       const res = await fetch(
-        `/api/chat/threads`,
+        `/api/chat/threads?language=${chatLanguage}`,
       );
       const json = (await res.json()) as { ok: boolean; items?: Thread[] };
       if (cancelled) return;
@@ -144,7 +160,7 @@ export function FloatingChat() {
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, open]);
+  }, [session, open, chatLanguage]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -170,7 +186,7 @@ export function FloatingChat() {
       const res = await fetch("/api/chat/threads", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ language: chatLanguage }),
       });
       const json = (await res.json()) as { ok: boolean; id?: string };
       if (!json.ok || !json.id) return;
@@ -310,14 +326,15 @@ export function FloatingChat() {
       setStage(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, active, input, fetchMessages, loadThreads]);
+  }, [session, active, input, fetchMessages, loadThreads, chatLanguage]);
 
   const send = useCallback(() => void sendText(), [sendText]);
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ message: string; cacheWord?: string }>).detail;
+      const detail = (e as CustomEvent<{ message: string; cacheWord?: string; language?: StudyLanguage }>).detail;
       if (!detail.message) return;
+      setChatLanguage(detail.language ?? homeLanguageRef.current);
       pendingMsg.current = detail.message;
       cacheWord.current = detail.cacheWord ?? null;
       setActive(DRAFT_ID);
@@ -360,7 +377,10 @@ export function FloatingChat() {
       {!open && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setChatLanguage(homeLanguage);
+            setOpen(true);
+          }}
           aria-label="채팅 열기"
           style={fabStyle}
           data-guide="chat-fab"
@@ -385,6 +405,9 @@ export function FloatingChat() {
               {historyOpen ? <IconChevronLeft /> : <IconMenu />}
             </button>
             <span style={titleStyle}>{activeTitle}</span>
+            {chatLanguage === "hanja" ? (
+              <span style={langBadgeStyle}>{STUDY_LANGUAGE_LABEL.hanja}</span>
+            ) : null}
             <button
               type="button"
               onClick={startNewDraft}
@@ -410,7 +433,7 @@ export function FloatingChat() {
               {hydrating && messages.length === 0 ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
-                <EmptyGuide onPick={(q) => void sendText(q)} chips={chips} />
+                <EmptyGuide onPick={(q) => void sendText(q)} chips={chips} language={chatLanguage} />
               ) : (
                 messages.map((m) => {
                   const isPendingAi = m._id.startsWith("local-ai-") && busy;
@@ -573,14 +596,28 @@ export function FloatingChat() {
 
 /* ── 빈 화면 안내 ── */
 
-/** 무엇을 물어볼 수 있는지 대화처럼 먼저 보여준다 */
-const SUGGESTIONS = [
-  "이 단어로 예문 3개 만들어줘",
-  "make와 do는 어떻게 달라?",
-  "영어 단어를 오래 기억하는 방법 알려줘",
-  "제가 쓴 문장 어색한 곳 고쳐줄래?",
-  "비슷한 뜻인데 헷갈리는 표현 정리해줘",
-];
+/** 무엇을 물어볼 수 있는지 대화처럼 먼저 보여준다 — 학습 언어별로 */
+const SUGGESTIONS: Record<StudyLanguage, string[]> = {
+  en: [
+    "이 단어로 예문 3개 만들어줘",
+    "make와 do는 어떻게 달라?",
+    "영어 단어를 오래 기억하는 방법 알려줘",
+    "제가 쓴 문장 어색한 곳 고쳐줄래?",
+    "비슷한 뜻인데 헷갈리는 표현 정리해줘",
+  ],
+  hanja: [
+    "學 이 들어간 한자어 알려줘",
+    "未 와 末 은 어떻게 달라?",
+    "한자를 오래 기억하는 방법 알려줘",
+    "一石二鳥 는 무슨 뜻이야?",
+    "부수로 뜻을 짐작하는 법 알려줘",
+  ],
+};
+
+const GREETING: Record<StudyLanguage, string> = {
+  en: "안녕하세요, **SnapWord 영어 학습 도우미**예요. 단어·표현·문법을 물어보면 예문과 함께 정리해 드려요.",
+  hanja: "안녕하세요, **SnapWord 한자 학습 도우미**예요. 한자·한자어를 물어보면 훈·음과 뜻, 쓰임을 함께 정리해 드려요.",
+};
 
 
 /**
@@ -757,15 +794,17 @@ function FollowUps({ chips, onPick }: { chips: string[]; onPick: (q: string) => 
 function EmptyGuide({
   onPick,
   chips,
+  language,
 }: {
   onPick: (q: string) => void;
   /** 서버에서 받은 것. 아직 못 받았으면 고정 목록으로 시작한다 */
   chips: string[];
+  language: StudyLanguage;
 }) {
-  const items = chips.length > 0 ? chips : SUGGESTIONS;
+  const items = chips.length > 0 ? chips : SUGGESTIONS[language];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
-      <GuideBubble text="안녕하세요, **SnapWord 영어 학습 도우미**예요. 단어·표현·문법을 물어보면 예문과 함께 정리해 드려요." />
+      <GuideBubble text={GREETING[language]} />
       <GuideBubble text="이런 걸 물어볼 수 있어요 👇" />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
@@ -916,6 +955,16 @@ const headerBtnStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+};
+
+const langBadgeStyle: CSSProperties = {
+  flexShrink: 0,
+  fontSize: 11,
+  fontWeight: 600,
+  padding: "2px 6px",
+  borderRadius: 6,
+  background: "var(--bg-elevated)",
+  color: "var(--accent-ink)",
 };
 
 const titleStyle: CSSProperties = {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { wordFontSize } from "@/lib/studyLanguage";
 
 type ResultRow = {
   _id: string;
@@ -110,7 +111,7 @@ export default function SessionDetailPage() {
                       <span style={wrongBadge}>오답</span>
                       <span style={typeBadge}>{TYPE_LABELS[r.type] ?? r.type}</span>
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+                    <div style={{ fontSize: wordFontSize(r.word, 16), fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
                       {r.word}
                     </div>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
@@ -135,7 +136,7 @@ export default function SessionDetailPage() {
                       <span style={correctBadge}>정답</span>
                       <span style={typeBadge}>{TYPE_LABELS[r.type] ?? r.type}</span>
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+                    <div style={{ fontSize: wordFontSize(r.word, 16), fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
                       {r.word}
                     </div>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>

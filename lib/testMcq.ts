@@ -1,3 +1,5 @@
+import { WORD_FIELD_LABELS, type StudyLanguage } from "@/lib/studyLanguage";
+
 export type TestClueType = "meaning" | "example" | "synonym" | "antonym";
 
 export type WordForMcq = {
@@ -109,16 +111,18 @@ export function buildMcqQuestionsForPrint(
   return qs;
 }
 
-export function clueTypeLabelKo(type: TestClueType): string {
+/** 힌트 유형 이름 — 학습 언어별 칸 이름을 쓴다 → lib/studyLanguage.ts */
+export function clueTypeLabelKo(type: TestClueType, language: StudyLanguage = "en"): string {
+  const L = WORD_FIELD_LABELS[language];
   switch (type) {
     case "meaning":
-      return "설명";
+      return L.meaning;
     case "example":
-      return "예문";
+      return L.example;
     case "synonym":
-      return "동의어";
+      return L.synonyms;
     case "antonym":
-      return "반의어";
+      return L.antonyms;
     default:
       return type;
   }

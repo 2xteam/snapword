@@ -10,6 +10,8 @@ import type { VocabularyPayload } from "@/lib/vocabularyTypes";
 import { emptyVocabularyPayload, normalizeVocabularyPayload } from "@/lib/vocabularyTypes";
 import { loadSession, type SessionUser } from "@/lib/session";
 import { checkUploadSize, shrinkImageForUpload } from "@/lib/clientImageResize";
+import { HANJA_WORD_SCALE, WORD_FIELD_LABELS } from "@/lib/studyLanguage";
+import { useDeckLanguage } from "@/lib/useDeckLanguage";
 
 type WordRow = VocabularyPayload & { _id?: string };
 
@@ -29,6 +31,10 @@ export default function VocabWordsEditPage() {
   const [dialogRow, setDialogRow] = useState<WordRow>(emptyVocabularyPayload());
   const [visionRows, setVisionRows] = useState<WordRow[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  // 칸 이름은 단어장 언어로 — 한자면 한자·훈음·뜻·한자어·예문·유의자·반의자
+  const deckLanguage = useDeckLanguage(vocabId);
+  const L = WORD_FIELD_LABELS[deckLanguage];
+  const isHanjaDeck = deckLanguage === "hanja";
 
   useEffect(() => {
     const s = loadSession();
@@ -191,7 +197,7 @@ export default function VocabWordsEditPage() {
   const saveRow = async (i: number) => {
     const r = rows[i];
     if (!session || !r._id) return;
-    if (!r.word.trim() || !r.meaning.trim()) { setMsgType("warn"); setMsg("단어와 설명은 필수입니다."); return; }
+    if (!r.word.trim() || !r.meaning.trim()) { setMsgType("warn"); setMsg(`${L.word}와 ${L.meaning}은 필수입니다.`); return; }
     setBusy(`save-${i}`);
     setMsg(null);
     try {
@@ -244,15 +250,15 @@ export default function VocabWordsEditPage() {
         {!loaded ? (
           <p style={{ color: "var(--text-muted)", fontSize: 14 }}>로딩중입니다…</p>
         ) : rows.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>단어가 없습니다. 위 버튼으로 추가하세요.</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{L.word}가 없습니다. 위 버튼으로 추가하세요.</p>
         ) : (
           rows.map((r, i) => (
             <div key={`${r._id ?? "new"}-${i}`} style={{ borderRadius: "var(--radius-lg)", padding: "0.85rem", background: "var(--bg-card)" }}>
-              <Field label="단어 *" value={r.word} onChange={(v) => updateRow(i, { word: v })} />
-              <Field label="설명 *" value={r.meaning} onChange={(v) => updateRow(i, { meaning: v })} multiline />
-              <Field label="예문" value={r.example} onChange={(v) => updateRow(i, { example: v })} multiline />
-              <Field label="동의어 (쉼표 구분)" value={r.synonyms.join(", ")} onChange={(v) => updateRow(i, { synonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
-              <Field label="반의어 (쉼표 구분)" value={r.antonyms.join(", ")} onChange={(v) => updateRow(i, { antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
+              <Field label={`${L.word} *`} big={isHanjaDeck} value={r.word} onChange={(v) => updateRow(i, { word: v })} />
+              <Field label={`${L.meaning} *`} value={r.meaning} onChange={(v) => updateRow(i, { meaning: v })} multiline />
+              <Field label={L.example} value={r.example} onChange={(v) => updateRow(i, { example: v })} multiline />
+              <Field label={`${L.synonyms} (쉼표 구분)`} value={r.synonyms.join(", ")} onChange={(v) => updateRow(i, { synonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
+              <Field label={`${L.antonyms} (쉼표 구분)`} value={r.antonyms.join(", ")} onChange={(v) => updateRow(i, { antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) })} />
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 {r._id && (
                   <button type="button" onClick={() => void saveRow(i)} disabled={busy !== null} style={btnSave}>
@@ -273,11 +279,11 @@ export default function VocabWordsEditPage() {
           <div style={overlayStyle} onClick={closeDialog} />
           <div style={dialogBoxStyle}>
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>수동 추가</h3>
-            <Field label="단어 *" value={dialogRow.word} onChange={(v) => setDialogRow((d) => ({ ...d, word: v }))} />
-            <Field label="설명 *" value={dialogRow.meaning} onChange={(v) => setDialogRow((d) => ({ ...d, meaning: v }))} multiline />
-            <Field label="예문" value={dialogRow.example} onChange={(v) => setDialogRow((d) => ({ ...d, example: v }))} multiline />
-            <Field label="동의어 (쉼표 구분)" value={dialogRow.synonyms.join(", ")} onChange={(v) => setDialogRow((d) => ({ ...d, synonyms: v.split(",").map((s) => s.trim()).filter(Boolean) }))} />
-            <Field label="반의어 (쉼표 구분)" value={dialogRow.antonyms.join(", ")} onChange={(v) => setDialogRow((d) => ({ ...d, antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) }))} />
+            <Field label={`${L.word} *`} big={isHanjaDeck} value={dialogRow.word} onChange={(v) => setDialogRow((d) => ({ ...d, word: v }))} />
+            <Field label={`${L.meaning} *`} value={dialogRow.meaning} onChange={(v) => setDialogRow((d) => ({ ...d, meaning: v }))} multiline />
+            <Field label={L.example} value={dialogRow.example} onChange={(v) => setDialogRow((d) => ({ ...d, example: v }))} multiline />
+            <Field label={`${L.synonyms} (쉼표 구분)`} value={dialogRow.synonyms.join(", ")} onChange={(v) => setDialogRow((d) => ({ ...d, synonyms: v.split(",").map((s) => s.trim()).filter(Boolean) }))} />
+            <Field label={`${L.antonyms} (쉼표 구분)`} value={dialogRow.antonyms.join(", ")} onChange={(v) => setDialogRow((d) => ({ ...d, antonyms: v.split(",").map((s) => s.trim()).filter(Boolean) }))} />
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: "0.75rem" }}>
               <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
               <button type="button" onClick={() => void submitManual()} disabled={busy !== null || !dialogRow.word.trim() || !dialogRow.meaning.trim()} style={btnAccent}>
@@ -294,7 +300,7 @@ export default function VocabWordsEditPage() {
           <div style={overlayStyle} onClick={closeDialog} />
           <div style={dialogBoxStyle}>
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
-              사진에서 {visionRows.length}개 단어 추출
+              사진에서 {visionRows.length}개 {L.word} 추출
             </h3>
             <div style={{ display: "grid", gap: "0.75rem", maxHeight: "55vh", overflowY: "auto", paddingBottom: 60 }}>
               {visionRows.map((vr, i) => (
@@ -303,11 +309,11 @@ export default function VocabWordsEditPage() {
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>#{i + 1}</span>
                     <button type="button" onClick={() => removeVisionRow(i)} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 12 }}>삭제</button>
                   </div>
-                  <Field label="단어 *" value={vr.word} onChange={(v) => updateVisionRow(i, { word: v })} />
-                  <Field label="설명 *" value={vr.meaning} onChange={(v) => updateVisionRow(i, { meaning: v })} multiline />
-                  <Field label="예문" value={vr.example} onChange={(v) => updateVisionRow(i, { example: v })} multiline />
+                  <Field label={`${L.word} *`} big={isHanjaDeck} value={vr.word} onChange={(v) => updateVisionRow(i, { word: v })} />
+                  <Field label={`${L.meaning} *`} value={vr.meaning} onChange={(v) => updateVisionRow(i, { meaning: v })} multiline />
+                  <Field label={L.example} value={vr.example} onChange={(v) => updateVisionRow(i, { example: v })} multiline />
                   <Field
-                    label="동의어 (쉼표 구분)"
+                    label={`${L.synonyms} (쉼표 구분)`}
                     value={vr.synonyms.join(", ")}
                     onChange={(v) =>
                       updateVisionRow(i, {
@@ -316,7 +322,7 @@ export default function VocabWordsEditPage() {
                     }
                   />
                   <Field
-                    label="반의어 (쉼표 구분)"
+                    label={`${L.antonyms} (쉼표 구분)`}
                     value={vr.antonyms.join(", ")}
                     onChange={(v) =>
                       updateVisionRow(i, {
@@ -362,14 +368,15 @@ export default function VocabWordsEditPage() {
   );
 }
 
-function Field({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
+/** `big` — 한자 단어장의 표제어 칸. 한자는 두 배 크기라야 획이 보인다 → lib/studyLanguage.ts */
+function Field({ label, value, onChange, multiline, big }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; big?: boolean }) {
   return (
     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: 12, color: "var(--text-secondary)" }}>
       {label}
       {multiline ? (
         <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", marginTop: 4 }} />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", marginTop: 4 }} />
+        <input value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", marginTop: 4, ...(big ? { fontSize: 16 * HANJA_WORD_SCALE } : {}) }} />
       )}
     </label>
   );

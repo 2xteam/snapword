@@ -16,6 +16,12 @@ const FolderSchema = new Schema(
       index: true,
     },
     name: { type: String, required: true, trim: true },
+    /*
+      학습 언어 → lib/folderLanguage.ts. 이 필드 전의 폴더는 값이 없고,
+      안에 든 단어장으로 짐작한다. 그래서 **기본값을 두지 않는다** — 기본값이 있으면
+      옛 폴더가 모두 영어로 읽혀 한자 단어장이 든 폴더가 영어 목록에 묶인다.
+    */
+    language: { type: String, enum: ["en", "hanja"], required: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     createdAt: { type: Date, default: Date.now },
     deletedAt: { type: Date, default: null, index: true },

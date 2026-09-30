@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { StudyLanguageTabs } from "@/components/StudyLanguageTabs";
+import { STUDY_LANGUAGE_LABEL } from "@/lib/studyLanguage";
+import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type FolderRow = {
   _id: string;
@@ -40,6 +43,8 @@ export default function HomeFoldersPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [dialogName, setDialogName] = useState("");
+  // 폴더는 학습 언어별로 따로 보인다 → lib/folderLanguage.ts
+  const { language, ready: langReady } = useStudyLanguage();
 
   const [trashFolders, setTrashFolders] = useState<TrashFolder[]>([]);
   const [trashDecks, setTrashDecks] = useState<TrashDeck[]>([]);
@@ -55,12 +60,12 @@ export default function HomeFoldersPage() {
 
   const refresh = useCallback(async (s: SessionUser) => {
     const res = await fetch(
-      `/api/folders?parentId=`,
+      `/api/folders?parentId=&language=${language}`,
     );
     const json = (await res.json()) as { ok: boolean; items?: FolderRow[] };
     if (json.ok && json.items) setFolders(json.items as FolderRow[]);
     setLoaded(true);
-  }, []);
+  }, [language]);
 
   const refreshTrash = useCallback(async (s: SessionUser) => {
     const res = await fetch(`/api/trash`);
@@ -73,9 +78,9 @@ export default function HomeFoldersPage() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !langReady) return;
     void refresh(session);
-  }, [session, refresh]);
+  }, [session, refresh, langReady]);
 
   useEffect(() => {
     if (!session || viewTab !== "trash") return;
@@ -91,7 +96,7 @@ export default function HomeFoldersPage() {
     setMsg(null);
     if (dialog?.type === "create") {
       if (!dialogName.trim()) return;
-      const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim(), createdBy: session.id, parentFolderId: null }) });
+      const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim(), createdBy: session.id, parentFolderId: null, language }) });
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !json.ok) { setMsg(json.error ?? "폴더 생성 실패"); return; }
       setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
@@ -168,6 +173,8 @@ export default function HomeFoldersPage() {
       {/* ── Folders 탭 ── */}
       {viewTab === "folders" && (
         <>
+          {/* 영어·한자 폴더를 나눠 본다. 홈의 탭과 같은 값이다 */}
+          <StudyLanguageTabs />
           {msg ? <p style={{ color: "var(--danger)", fontSize: 13 }}>{msg}</p> : null}
 
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }}>
@@ -276,7 +283,7 @@ export default function HomeFoldersPage() {
             ) : (
               <>
                 <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: "var(--text-primary)" }}>
-                  {dialog.type === "create" ? "새 폴더 만들기" : "폴더 이름 수정"}
+                  {dialog.type === "create" ? `새 ${STUDY_LANGUAGE_LABEL[language]} 폴더 만들기` : "폴더 이름 수정"}
                 </h3>
                 <input
                   value={dialogName}

@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     }
 
     // 남의 폴더 id 를 넣어도 내 것만 나온다
-    const items = await VocabularyDeck.find({ folderId, createdBy: viewer.uid, deletedAt: null })
+    const items = await VocabularyDeck.find({ folderId, createdBy: viewer.uid, deletedAt: null, ...languageFilter })
       .sort({ createdAt: -1 })
       .limit(200)
       .lean()

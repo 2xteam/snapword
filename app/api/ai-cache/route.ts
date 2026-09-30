@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireViewer, badRequest } from "@/lib/auth";
-import { normalizeAiCacheKey } from "@/lib/aiCacheKey";
+import { aiCacheKeyFor } from "@/lib/aiCacheKey";
+import { normalizeStudyLanguage } from "@/lib/studyLanguage";
 import { AiCache } from "@/models/AiCache";
 
 export const runtime = "nodejs";
@@ -20,7 +21,8 @@ export async function GET(req: Request) {
   const raw = searchParams.get("word");
   if (!raw) return badRequest("word required");
 
-  const word = normalizeAiCacheKey(raw);
+  // 학습 언어별로 키가 갈린다 → lib/aiCacheKey.ts
+  const word = aiCacheKeyFor(raw, normalizeStudyLanguage(searchParams.get("language")));
   if (!word) return badRequest("word required");
 
   await connectDB();
@@ -40,10 +42,11 @@ export async function POST(req: Request) {
     kind?: string;
     prompt?: string;
     answer?: string;
+    language?: string;
   };
   if (!body.word || !body.answer) return badRequest("word and answer required");
 
-  const word = normalizeAiCacheKey(body.word);
+  const word = aiCacheKeyFor(body.word, normalizeStudyLanguage(body.language));
   if (!word) return badRequest("word required");
 
   await connectDB();

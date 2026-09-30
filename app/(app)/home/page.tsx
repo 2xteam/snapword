@@ -9,10 +9,10 @@ import { useDragScroll } from "@/lib/useDragScroll";
 import { WordOfTheDayCard, type WotdData } from "@/components/WordOfTheDayCard";
 import { EgArticleList, type EgItem } from "@/components/DwtArticleList";
 import { InstallButton } from "@/components/InstallButton";
+import { StudyLanguageTabs } from "@/components/StudyLanguageTabs";
 import {
-  STUDY_LANGUAGES,
-  STUDY_LANGUAGE_LABEL,
-  naverDictionaryUrl,
+  HANJA_DICTIONARY_HOME,
+  openInNewWindow,
   showsEnglishFeeds,
 } from "@/lib/studyLanguage";
 import { useStudyLanguage } from "@/lib/useStudyLanguage";
@@ -31,7 +31,7 @@ export default function HomePage() {
   const [wotd, setWotd] = useState<WotdData | null>(null);
   const [rssLoading, setRssLoading] = useState(true);
   const [egItems, setEgItems] = useState<EgItem[]>([]);
-  const { language, ready: langReady, setLanguage } = useStudyLanguage();
+  const { language, ready: langReady } = useStudyLanguage();
   const englishFeeds = showsEnglishFeeds(language);
   const deckDragRef = useDragScroll();
   const folderDragRef = useDragScroll();
@@ -46,8 +46,8 @@ export default function HomePage() {
     if (!session || !langReady) return;
     (async () => {
       const [fRes, vRes, wRes] = await Promise.all([
-        fetch(`/api/folders?parentId=`),
-        // 최근 단어장은 고른 학습 언어의 것만
+        // 최근 폴더·단어장은 고른 학습 언어의 것만
+        fetch(`/api/folders?parentId=&language=${language}`),
         fetch(`/api/vocabularies?language=${language}`),
         fetch(`/api/wrong-words?limit=50`),
       ]);
@@ -87,20 +87,7 @@ export default function HomePage() {
   return (
     <div style={{ display: "grid", gap: "1rem", minWidth: 0 }}>
       {/* 학습 언어 전환 — 기본은 영어 */}
-      <div role="tablist" aria-label="학습 언어" style={langTabs} data-guide="language-tabs">
-        {STUDY_LANGUAGES.map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="tab"
-            aria-selected={language === l}
-            onClick={() => setLanguage(l)}
-            style={language === l ? { ...langTab, ...langTabOn } : langTab}
-          >
-            {STUDY_LANGUAGE_LABEL[l]}
-          </button>
-        ))}
-      </div>
+      <StudyLanguageTabs guide="language-tabs" />
 
       {/* Row 1: 오늘의 Word(영어) 또는 한자사전(한자) | 복습 */}
       <div style={twoColGrid}>
@@ -108,9 +95,10 @@ export default function HomePage() {
           <section>
             <h2 style={sectionLabel}>한자사전</h2>
             <a
-              href={naverDictionaryUrl("漢字")}
+              href={HANJA_DICTIONARY_HOME}
               target="_blank"
               rel="noreferrer"
+              onClick={(e) => openInNewWindow(e, HANJA_DICTIONARY_HOME)}
               style={{ ...squareCard, textDecoration: "none" }}
             >
               <span style={{ fontSize: 34, fontWeight: 700, color: "var(--accent-ink)", lineHeight: 1 }}>漢</span>
@@ -269,31 +257,6 @@ function FileIcon() {
     </svg>
   );
 }
-
-const langTabs: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 4,
-  padding: 4,
-  borderRadius: "var(--radius-sm)",
-  background: "var(--bg-card)",
-};
-
-const langTab: CSSProperties = {
-  padding: "0.5rem 0",
-  border: "none",
-  borderRadius: 8,
-  background: "transparent",
-  color: "var(--text-secondary)",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const langTabOn: CSSProperties = {
-  background: "var(--accent)",
-  color: "var(--on-accent)",
-};
 
 const sectionLabel: CSSProperties = {
   margin: "0 0 0.4rem",

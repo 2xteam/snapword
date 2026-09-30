@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
-import { STUDY_LANGUAGES, STUDY_LANGUAGE_LABEL, type StudyLanguage } from "@/lib/studyLanguage";
+import { STUDY_LANGUAGE_LABEL, type StudyLanguage } from "@/lib/studyLanguage";
 import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type FolderRow = { _id: string; name: string; parentFolderId?: string | null };
@@ -32,9 +32,11 @@ export default function FolderInsidePage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [dialogName, setDialogName] = useState("");
-  const { language: homeLanguage } = useStudyLanguage();
-  // 새 단어장의 학습 언어. 홈에서 고른 언어로 시작한다
-  const [dialogLanguage, setDialogLanguage] = useState<StudyLanguage>("en");
+  /*
+    폴더 안도 고른 학습 언어의 하위 폴더·단어장만 보인다. 새로 만드는 폴더·단어장도
+    이 언어다 — 영어·한자가 한 목록에 섞이면 헷갈린다 → lib/folderLanguage.ts
+  */
+  const { language, ready: langReady } = useStudyLanguage();
 
   useEffect(() => {
     const s = loadSession();
@@ -46,8 +48,8 @@ export default function FolderInsidePage() {
     async (s: SessionUser) => {
       const [fRes, cRes, vRes] = await Promise.all([
         fetch(`/api/folders/${folderId}`),
-        fetch(`/api/folders?parentId=${encodeURIComponent(folderId)}`),
-        fetch(`/api/vocabularies?folderId=${encodeURIComponent(folderId)}`),
+        fetch(`/api/folders?parentId=${encodeURIComponent(folderId)}&language=${language}`),
+        fetch(`/api/vocabularies?folderId=${encodeURIComponent(folderId)}&language=${language}`),
       ]);
       const fj = (await fRes.json()) as { ok: boolean; item?: FolderRow };
       const cj = (await cRes.json()) as { ok: boolean; items?: FolderRow[] };
@@ -57,13 +59,13 @@ export default function FolderInsidePage() {
       if (vj.ok && vj.items) setDecks(vj.items);
       setLoaded(true);
     },
-    [folderId],
+    [folderId, language],
   );
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !langReady) return;
     void refresh(session);
-  }, [session, refresh]);
+  }, [session, refresh, langReady]);
 
   const parentHref = folder?.parentFolderId
     ? `/folders/${String(folder.parentFolderId)}`
@@ -72,7 +74,6 @@ export default function FolderInsidePage() {
   const openDialog = (d: Dialog) => {
     if (d && ("current" in d)) setDialogName(d.current);
     else setDialogName("");
-    setDialogLanguage(homeLanguage);
     setDialog(d);
   };
 
@@ -93,12 +94,12 @@ export default function FolderInsidePage() {
     } else {
       if (!dialogName.trim()) return;
       if (dialog.type === "createFolder") {
-        const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId }) });
+        const res = await fetch("/api/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: dialogName.trim(), createdBy: session.id, parentFolderId: folderId, language }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "createDeck") {
-        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, name: dialogName.trim(), description: "", language: dialogLanguage, createdBy: session.id }) });
+        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, name: dialogName.trim(), description: "", language, createdBy: session.id }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
@@ -121,8 +122,8 @@ export default function FolderInsidePage() {
   const dialogTitle = (() => {
     if (!dialog) return "";
     switch (dialog.type) {
-      case "createFolder": return "새 폴더";
-      case "createDeck": return "새 단어장";
+      case "createFolder": return `새 ${STUDY_LANGUAGE_LABEL[language]} 폴더`;
+      case "createDeck": return `새 ${STUDY_LANGUAGE_LABEL[language]} 단어장`;
       case "renameFolder": return "폴더 이름 수정";
       case "renameDeck": return "단어장 이름 수정";
       case "deleteFolder": return "폴더 삭제";
@@ -243,22 +244,6 @@ export default function FolderInsidePage() {
                   style={{ width: "100%", marginBottom: "1rem" }}
                   onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
                 />
-                {dialog.type === "createDeck" ? (
-                  <div role="radiogroup" aria-label="학습 언어" style={{ display: "flex", gap: 6, marginBottom: "1rem" }}>
-                    {STUDY_LANGUAGES.map((l) => (
-                      <button
-                        key={l}
-                        type="button"
-                        role="radio"
-                        aria-checked={dialogLanguage === l}
-                        onClick={() => setDialogLanguage(l)}
-                        style={dialogLanguage === l ? { ...langChoice, ...langChoiceOn } : langChoice}
-                      >
-                        {STUDY_LANGUAGE_LABEL[l]}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                   <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
                   <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnAccent}>
@@ -367,16 +352,6 @@ const btnDanger: CSSProperties = {
 const langBadge: CSSProperties = {
   fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6,
   background: "var(--bg-elevated)", color: "var(--accent-ink)", flexShrink: 0,
-};
-
-const langChoice: CSSProperties = {
-  flex: 1, padding: "0.5rem 0", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
-  background: "var(--bg-elevated)", color: "var(--text-secondary)",
-  fontWeight: 600, cursor: "pointer", fontSize: 13,
-};
-
-const langChoiceOn: CSSProperties = {
-  background: "var(--accent)", borderColor: "var(--accent)", color: "var(--on-accent)",
 };
 
 const btnCancel: CSSProperties = {

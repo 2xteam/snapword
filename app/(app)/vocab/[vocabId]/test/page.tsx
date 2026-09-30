@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { WORD_FIELD_LABELS, wordFontSize } from "@/lib/studyLanguage";
+import { useDeckLanguage } from "@/lib/useDeckLanguage";
 import {
   buildMcqQuestionsFromPool,
   clueTypeLabelKo,
@@ -32,6 +34,8 @@ const backBtnStyle: import("react").CSSProperties = {
 
 export default function TestPage() {
   const { vocabId } = useParams<{ vocabId: string }>();
+  // 힌트 이름·문제 문구를 단어장 언어로
+  const deckLanguage = useDeckLanguage(vocabId);
   const router = useRouter();
   const [session, setSession] = useState<SessionUser | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
@@ -148,7 +152,7 @@ export default function TestPage() {
             />
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            힌트 유형: <strong>{clueTypeLabelKo(q.type)}</strong> · {step + 1}/{qs.length}
+            힌트 유형: <strong>{clueTypeLabelKo(q.type, deckLanguage)}</strong> · {step + 1}/{qs.length}
           </p>
           <div
             style={{
@@ -163,7 +167,7 @@ export default function TestPage() {
           >
             {q.clue}
           </div>
-          <p style={{ fontWeight: 700, marginBottom: 8, color: "var(--text-primary)" }}>정답 단어 고르기</p>
+          <p style={{ fontWeight: 700, marginBottom: 8, color: "var(--text-primary)" }}>정답 {WORD_FIELD_LABELS[deckLanguage].word} 고르기</p>
           <div style={{ display: "grid", gap: 8 }}>
             {q.options.map((opt) => {
               const show = picked !== null;
@@ -194,7 +198,7 @@ export default function TestPage() {
                       : wrongPick
                         ? "#fca5a5"
                         : "var(--text-primary)",
-                    fontSize: 15,
+                    fontSize: wordFontSize(opt, 15),
                     cursor: picked !== null ? "default" : "pointer",
                   }}
                 >

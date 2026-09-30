@@ -9,6 +9,7 @@ import {
   listConversationMessages,
 } from "@/lib/openAiConversations";
 import { requireConsents } from "@/lib/requireConsent";
+import { normalizeStudyLanguage } from "@/lib/studyLanguage";
 import { ChatThread, type ChatThreadDocument } from "@/models/ChatThread";
 import { deductTokens } from "@/lib/useToken";
 
@@ -147,6 +148,7 @@ export async function POST(
     const { assistantText, openAiResponseId, usage } = await runChatTurn({
       userText: text,
       openAiConversationId: convId,
+      language: normalizeStudyLanguage(thread.language),
     });
 
     if (usage) {
@@ -160,7 +162,7 @@ export async function POST(
     let threadTitle: string | null = null;
     const currentTitle = (thread.title ?? "").trim();
     if (!currentTitle || currentTitle === "새 대화") {
-      const subject = await generateChatSubjectLine(text);
+      const subject = await generateChatSubjectLine(text, normalizeStudyLanguage(thread.language));
       if (subject) {
         thread.title = subject;
         threadTitle = subject;

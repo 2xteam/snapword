@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { WORD_FIELD_LABELS } from "@/lib/studyLanguage";
+import { useDeckLanguage } from "@/lib/useDeckLanguage";
 
 type Deck = { _id: string; name: string; folderId: string };
 
@@ -12,6 +14,12 @@ export default function VocabHubPage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionUser | null>(null);
   const [deck, setDeck] = useState<Deck | null>(null);
+  /*
+    등록한 단어 수. 0이면 Study·Test·Score 를 **감춘다** — 단어가 없으면 셋 다
+    빈 화면이라 눌러 봐야 할 일이 없다. 세기 전(null)에도 감춰서 깜빡이지 않게 한다.
+  */
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const L = WORD_FIELD_LABELS[useDeckLanguage(vocabId)];
 
   useEffect(() => {
     const s = loadSession();
@@ -28,11 +36,21 @@ export default function VocabHubPage() {
       const json = (await res.json()) as { ok: boolean; item?: Deck };
       if (json.ok && json.item) setDeck(json.item);
     })();
+    (async () => {
+      try {
+        const res = await fetch(`/api/words?vocabId=${encodeURIComponent(vocabId)}`);
+        const json = (await res.json()) as { ok: boolean; items?: unknown[] };
+        setWordCount(json.ok ? (json.items?.length ?? 0) : 0);
+      } catch {
+        setWordCount(0);
+      }
+    })();
   }, [session, vocabId]);
 
   if (!session || !vocabId) return null;
 
   const base = `/vocab/${vocabId}`;
+  const hasWords = (wordCount ?? 0) > 0;
 
   return (
     <div style={{
@@ -72,10 +90,25 @@ export default function VocabHubPage() {
             padding: "0 1rem",
           }}
         >
-          <HubButton href={`${base}/words`} label="단어 추가·편집" sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
-          <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} guide="hub-study" />
-          <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} guide="hub-test" />
-          <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} guide="hub-score" />
+          {hasWords ? (
+            <>
+              <HubButton href={`${base}/words`} label={`${L.word} 추가·편집`} sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
+              <HubButton href={`${base}/study`} label="Study" sub="카드 암기" icon={<BookIcon />} guide="hub-study" />
+              <HubButton href={`${base}/test`} label="Test" sub="객관식 5지선다" icon={<CheckIcon />} guide="hub-test" />
+              <HubButton href={`${base}/scores`} label="Score" sub="시험 기록" icon={<ChartIcon />} guide="hub-score" />
+            </>
+          ) : (
+            <>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <HubButton href={`${base}/words`} label={`${L.word} 추가·편집`} sub="수동 / 사진" icon={<EditIcon />} guide="hub-words" />
+              </div>
+              {wordCount === 0 ? (
+                <p style={{ gridColumn: "1 / -1", margin: "0.25rem 0 0", textAlign: "center", fontSize: 12, color: "var(--text-muted)" }}>
+                  {L.word}를 추가하면 Study · Test · Score 가 열려요
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
 

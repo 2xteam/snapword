@@ -4,6 +4,11 @@ const ChatThreadSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, default: "새 대화", trim: true },
+    /*
+      학습 언어 → lib/studyLanguage.ts. 대화방마다 정해지고 바뀌지 않는다 —
+      지시문·참고 문서가 이 값으로 갈린다. 이 필드 전의 대화방은 값이 없고 영어다.
+    */
+    language: { type: String, enum: ["en", "hanja"], default: "en" },
     /** OpenAI Conversations API id (`conv_...`). 대화 본문은 OpenAI에만 저장됩니다. */
     openAiConversationId: { type: String, default: null, index: true },
     /** 누적 입력 토큰 (Responses usage.input_tokens 합) */

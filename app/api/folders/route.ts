@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { Folder } from "@/models/Folder";
+import { folderLanguagesFor, folderShowsIn } from "@/lib/folderLanguage";
+import { normalizeStudyLanguage } from "@/lib/studyLanguage";
 
 export const runtime = "nodejs";
 
@@ -25,12 +27,18 @@ export async function GET(req: Request) {
         : { $or: [{ parentFolderId: null }, { parentFolderId: { $exists: false } }] };
 
     await connectDB();
-    const items = await Folder.find({ createdBy: viewer.uid, deletedAt: null, ...parentFilter })
+    const found = await Folder.find({ createdBy: viewer.uid, deletedAt: null, ...parentFilter })
       .sort({ createdAt: -1 })
       .limit(200)
       .lean()
       .exec();
 
+    // `language` 가 오면 그 학습 언어의 폴더만 → lib/folderLanguage.ts
+    const languageParam = url.searchParams.get("language");
+    if (!languageParam) return NextResponse.json({ ok: true, items: found });
+    const language = normalizeStudyLanguage(languageParam);
+    const langs = await folderLanguagesFor(viewer.uid);
+    const items = found.filter((f) => folderShowsIn(langs, String(f._id), language));
     return NextResponse.json({ ok: true, items });
   } catch (err) {
     return serverError(err);
@@ -43,7 +51,7 @@ export async function POST(req: Request) {
     if ("error" in auth) return auth.error;
     const { viewer } = auth;
 
-    let body: { name?: string; parentFolderId?: string | null };
+    let body: { name?: string; parentFolderId?: string | null; language?: string };
     try {
       body = await req.json();
     } catch {
@@ -75,6 +83,8 @@ export async function POST(req: Request) {
 
     const doc = await Folder.create({
       name,
+      // 홈에서 고른 학습 언어의 폴더로 만든다
+      language: normalizeStudyLanguage(body.language),
       createdBy: new mongoose.Types.ObjectId(viewer.uid),
       ...(parentFolderId ? { parentFolderId } : { parentFolderId: null }),
     });
