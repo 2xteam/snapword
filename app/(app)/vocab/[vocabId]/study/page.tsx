@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { IS_TOKEN_SYSTEM_ENABLED } from "@/lib/constants";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { naverDictionaryUrl } from "@/lib/studyLanguage";
 import { openFloatingChat } from "@/components/FloatingChat";
 import { showToast } from "@/components/Toast";
 import { BouncingSmiley } from "@/components/BouncingSmiley";
@@ -23,8 +24,8 @@ type W = {
 
 type TestWordStat = { wrongCount: number; attempts: number };
 
-const DICT = (word: string) =>
-  `https://en.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word)}&from=nsearch`;
+/* 한자가 섞인 단어는 한자사전, 아니면 영어사전 */
+const DICT = naverDictionaryUrl;
 
 const PEEK_PCT = 15;
 const GAP = 12;

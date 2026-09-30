@@ -9,7 +9,7 @@ import { normalizeRequestInstructions } from "@/lib/openaiInstructions";
 const MAX_BYTES = 4 * 1024 * 1024;
 
 export type ReadMultipartImageResult =
-  | { ok: true; buffer: Buffer; mimeType: string; instructions?: string }
+  | { ok: true; buffer: Buffer; mimeType: string; instructions?: string; vocabId?: string }
   | { ok: false; response: NextResponse };
 
 export async function readMultipartImage(
@@ -65,11 +65,15 @@ export async function readMultipartImage(
   }
 
   const instructions = normalizeRequestInstructions(formData.get("instructions"));
+  // 어느 단어장에 넣을 사진인지 — 학습 언어(영어·한자)를 고르는 데 쓴다
+  const vocabIdRaw = formData.get("vocabId");
+  const vocabId = typeof vocabIdRaw === "string" && vocabIdRaw.trim() ? vocabIdRaw.trim() : undefined;
 
   return {
     ok: true,
     buffer: Buffer.from(arrayBuffer),
     mimeType: file.type?.trim() || "image/jpeg",
     ...(instructions ? { instructions } : {}),
+    ...(vocabId ? { vocabId } : {}),
   };
 }

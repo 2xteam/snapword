@@ -9,6 +9,7 @@ import {
   dismissGuideToday,
 } from "@/lib/onboardingCookie";
 import { getPageGuide, type GuideStep } from "@/lib/onboardingSteps";
+import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type Phase = "idle" | "intro" | "running" | "done";
 
@@ -24,7 +25,11 @@ export function OnboardingGuide() {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const pageGuide = getPageGuide(pathname);
-  const steps: GuideStep[] = pageGuide?.steps ?? [];
+  const { language } = useStudyLanguage();
+  // 한자일 때는 영어 RSS 카드가 없다 — 그 안내도 건너뛴다
+  const steps: GuideStep[] = (pageGuide?.steps ?? []).filter(
+    (st) => !st.languages || st.languages.includes(language),
+  );
   const currentStep: GuideStep | null = phase === "running" && localIdx < steps.length ? steps[localIdx] : null;
 
   // Reset to idle when page changes

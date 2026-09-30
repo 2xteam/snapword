@@ -4,6 +4,7 @@ import { vocabularyFromPlainText } from "@/lib/llm";
 import { normalizeRequestInstructions } from "@/lib/openaiInstructions";
 import { isOpenAiApiKeyAuthError, isOpenAiKeyConfigured } from "@/lib/openaiKey";
 import { requireConsents } from "@/lib/requireConsent";
+import { deckLanguageFor } from "@/lib/deckLanguage";
 
 export const runtime = "nodejs";
 // OpenAI 응답 지연 대비 (Vercel 기본값은 플랜에 따라 10~15초)
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     const consentDenied = await requireConsents(viewer.uid, ["overseas"]);
     if (consentDenied) return consentDenied;
 
-    let body: { text?: string; instructions?: string };
+    let body: { text?: string; instructions?: string; vocabId?: string };
     try {
       body = await req.json();
     } catch {
@@ -56,10 +57,13 @@ export async function POST(req: Request) {
     }
 
     const extra = normalizeRequestInstructions(body.instructions);
+    // vocabId 가 오면 그 단어장의 학습 언어(영어·한자) 지침으로 읽는다
+    const language = await deckLanguageFor(viewer.uid, body.vocabId);
 
     try {
       const words = await vocabularyFromPlainText(text, {
         extraInstructions: extra,
+        language,
       });
       return NextResponse.json({ ok: true, words, source: "plain-text" });
     } catch (llmErr) {

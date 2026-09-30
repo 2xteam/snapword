@@ -9,6 +9,13 @@ import { useDragScroll } from "@/lib/useDragScroll";
 import { WordOfTheDayCard, type WotdData } from "@/components/WordOfTheDayCard";
 import { EgArticleList, type EgItem } from "@/components/DwtArticleList";
 import { InstallButton } from "@/components/InstallButton";
+import {
+  STUDY_LANGUAGES,
+  STUDY_LANGUAGE_LABEL,
+  naverDictionaryUrl,
+  showsEnglishFeeds,
+} from "@/lib/studyLanguage";
+import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type FolderRow = { _id: string; name: string };
 type DeckRow = { _id: string; name: string };
@@ -24,6 +31,8 @@ export default function HomePage() {
   const [wotd, setWotd] = useState<WotdData | null>(null);
   const [rssLoading, setRssLoading] = useState(true);
   const [egItems, setEgItems] = useState<EgItem[]>([]);
+  const { language, ready: langReady, setLanguage } = useStudyLanguage();
+  const englishFeeds = showsEnglishFeeds(language);
   const deckDragRef = useDragScroll();
   const folderDragRef = useDragScroll();
 
@@ -34,11 +43,12 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !langReady) return;
     (async () => {
       const [fRes, vRes, wRes] = await Promise.all([
         fetch(`/api/folders?parentId=`),
-        fetch(`/api/vocabularies`),
+        // 최근 단어장은 고른 학습 언어의 것만
+        fetch(`/api/vocabularies?language=${language}`),
         fetch(`/api/wrong-words?limit=50`),
       ]);
       const fj = (await fRes.json()) as { ok: boolean; items?: FolderRow[] };
@@ -52,9 +62,12 @@ export default function HomePage() {
       }
       setLoaded(true);
     })();
-  }, [session]);
+  }, [session, langReady, language]);
 
+  /* 영어 RSS 는 영어일 때만 부른다. 한자일 때는 요청도 보내지 않는다 */
   useEffect(() => {
+    if (!langReady || !englishFeeds) return;
+    setRssLoading(true);
     fetch("/api/rss-feeds")
       .then((r) => r.json())
       .then((j: { ok: boolean; wotd?: WotdData; eg?: EgItem[] }) => {
@@ -65,7 +78,7 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setRssLoading(false));
-  }, []);
+  }, [langReady, englishFeeds]);
 
   if (!session) return null;
 
@@ -73,8 +86,41 @@ export default function HomePage() {
 
   return (
     <div style={{ display: "grid", gap: "1rem", minWidth: 0 }}>
-      {/* Row 1: 오늘의 Word | 복습 */}
+      {/* 학습 언어 전환 — 기본은 영어 */}
+      <div role="tablist" aria-label="학습 언어" style={langTabs} data-guide="language-tabs">
+        {STUDY_LANGUAGES.map((l) => (
+          <button
+            key={l}
+            type="button"
+            role="tab"
+            aria-selected={language === l}
+            onClick={() => setLanguage(l)}
+            style={language === l ? { ...langTab, ...langTabOn } : langTab}
+          >
+            {STUDY_LANGUAGE_LABEL[l]}
+          </button>
+        ))}
+      </div>
+
+      {/* Row 1: 오늘의 Word(영어) 또는 한자사전(한자) | 복습 */}
       <div style={twoColGrid}>
+        {!englishFeeds ? (
+          <section>
+            <h2 style={sectionLabel}>한자사전</h2>
+            <a
+              href={naverDictionaryUrl("漢字")}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...squareCard, textDecoration: "none" }}
+            >
+              <span style={{ fontSize: 34, fontWeight: 700, color: "var(--accent-ink)", lineHeight: 1 }}>漢</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>네이버 한자사전</span>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", textAlign: "center", lineHeight: 1.4 }}>
+                뜻·음·획수를 찾아봐요
+              </span>
+            </a>
+          </section>
+        ) : (
         <section data-guide="wotd-section">
           <h2 style={sectionLabel}>오늘의 Word</h2>
           {rssLoading ? (
@@ -91,6 +137,7 @@ export default function HomePage() {
             </div>
           )}
         </section>
+        )}
 
         <section>
           <h2 style={sectionLabel}>복습</h2>
@@ -159,8 +206,8 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Row 3: 더 공부해 볼까? — 현재 유지 */}
-      {rssLoading ? (
+      {/* Row 3: 더 공부해 볼까? — 영어 문법 글이라 영어일 때만 */}
+      {!englishFeeds ? null : rssLoading ? (
         <EgCarouselSkeleton />
       ) : egItems.length > 0 ? (
         <EgArticleList items={egItems} limit={5} />
@@ -222,6 +269,31 @@ function FileIcon() {
     </svg>
   );
 }
+
+const langTabs: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 4,
+  padding: 4,
+  borderRadius: "var(--radius-sm)",
+  background: "var(--bg-card)",
+};
+
+const langTab: CSSProperties = {
+  padding: "0.5rem 0",
+  border: "none",
+  borderRadius: 8,
+  background: "transparent",
+  color: "var(--text-secondary)",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const langTabOn: CSSProperties = {
+  background: "var(--accent)",
+  color: "var(--on-accent)",
+};
 
 const sectionLabel: CSSProperties = {
   margin: "0 0 0.4rem",

@@ -5,6 +5,7 @@ import { vocabularyFromImageBuffer } from "@/lib/llm";
 import { requireConsents } from "@/lib/requireConsent";
 import { readMultipartImage } from "@/lib/readMultipartImage";
 import { deductTokens } from "@/lib/useToken";
+import { deckLanguageFor } from "@/lib/deckLanguage";
 
 export const runtime = "nodejs";
 // Hobby 플랜 상한이 60초다. 축소된 이미지(긴 변 2000px)의 Vision 처리는
@@ -14,6 +15,7 @@ export const maxDuration = 60;
 /**
  * 이미지를 OpenAI Vision으로 보내 단어 JSON(words) 생성.
  * POST multipart/form-data, 필드 이름: file
+ * 선택 필드 `vocabId` — 그 단어장의 학습 언어(영어·한자)에 맞는 지침으로 읽는다
  *
  * 요청자는 `viewer.uid` 하나다. 폼의 `userId` 필드는 옛 화면이 아직 보내지만
  * 읽지 않는다 — 남의 id 를 넣어 남의 토큰을 깎을 수 있었다 → lib/auth.ts
@@ -48,6 +50,9 @@ export async function POST(req: Request) {
       return parsed.response;
     }
 
+    // 토큰을 깎기 전에 읽는다 — 조회가 실패해도 토큰은 남는다
+    const language = await deckLanguageFor(viewer.uid, parsed.vocabId);
+
     const tokenResult = await deductTokens(viewer.uid, 10);
     if (!tokenResult.ok) {
       return NextResponse.json({ ok: false, error: tokenResult.error }, { status: 402 });
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
     const words = await vocabularyFromImageBuffer(
       parsed.buffer,
       parsed.mimeType,
-      { extraInstructions: parsed.instructions },
+      { extraInstructions: parsed.instructions, language },
     );
 
     return NextResponse.json({

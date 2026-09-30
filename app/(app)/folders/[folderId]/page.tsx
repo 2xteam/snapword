@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { loadSession, type SessionUser } from "@/lib/session";
+import { STUDY_LANGUAGES, STUDY_LANGUAGE_LABEL, type StudyLanguage } from "@/lib/studyLanguage";
+import { useStudyLanguage } from "@/lib/useStudyLanguage";
 
 type FolderRow = { _id: string; name: string; parentFolderId?: string | null };
-type DeckRow = { _id: string; name: string; description?: string };
+type DeckRow = { _id: string; name: string; description?: string; language?: StudyLanguage };
 
 type Dialog =
   | { type: "createFolder" }
@@ -30,6 +32,9 @@ export default function FolderInsidePage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [dialogName, setDialogName] = useState("");
+  const { language: homeLanguage } = useStudyLanguage();
+  // 새 단어장의 학습 언어. 홈에서 고른 언어로 시작한다
+  const [dialogLanguage, setDialogLanguage] = useState<StudyLanguage>("en");
 
   useEffect(() => {
     const s = loadSession();
@@ -67,6 +72,7 @@ export default function FolderInsidePage() {
   const openDialog = (d: Dialog) => {
     if (d && ("current" in d)) setDialogName(d.current);
     else setDialogName("");
+    setDialogLanguage(homeLanguage);
     setDialog(d);
   };
 
@@ -92,7 +98,7 @@ export default function FolderInsidePage() {
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
       } else if (dialog.type === "createDeck") {
-        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, name: dialogName.trim(), description: "", createdBy: session.id }) });
+        const res = await fetch("/api/vocabularies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderId, name: dialogName.trim(), description: "", language: dialogLanguage, createdBy: session.id }) });
         const json = (await res.json()) as { ok: boolean; error?: string };
         if (!res.ok || !json.ok) { setMsg(json.error ?? "실패"); return; }
         setTimeout(() => window.dispatchEvent(new Event("guide-action")), 600);
@@ -129,9 +135,9 @@ export default function FolderInsidePage() {
 
   if (!session) return null;
 
-  const items: Array<{ kind: "folder" | "deck"; id: string; name: string }> = [
+  const items: Array<{ kind: "folder" | "deck"; id: string; name: string; hanja?: boolean }> = [
     ...childFolders.map((f) => ({ kind: "folder" as const, id: f._id, name: f.name })),
-    ...decks.map((d) => ({ kind: "deck" as const, id: d._id, name: d.name })),
+    ...decks.map((d) => ({ kind: "deck" as const, id: d._id, name: d.name, hanja: d.language === "hanja" })),
   ];
 
   return (
@@ -172,6 +178,7 @@ export default function FolderInsidePage() {
               >
                 {it.kind === "folder" ? <FolderIcon /> : <FileIcon />}
                 <span style={{ flex: 1 }}>{it.name}</span>
+                {it.hanja ? <span style={langBadge}>{STUDY_LANGUAGE_LABEL.hanja}</span> : null}
               </Link>
               <button
                 type="button"
@@ -236,6 +243,22 @@ export default function FolderInsidePage() {
                   style={{ width: "100%", marginBottom: "1rem" }}
                   onKeyDown={(e) => e.key === "Enter" && void submitDialog()}
                 />
+                {dialog.type === "createDeck" ? (
+                  <div role="radiogroup" aria-label="학습 언어" style={{ display: "flex", gap: 6, marginBottom: "1rem" }}>
+                    {STUDY_LANGUAGES.map((l) => (
+                      <button
+                        key={l}
+                        type="button"
+                        role="radio"
+                        aria-checked={dialogLanguage === l}
+                        onClick={() => setDialogLanguage(l)}
+                        style={dialogLanguage === l ? { ...langChoice, ...langChoiceOn } : langChoice}
+                      >
+                        {STUDY_LANGUAGE_LABEL[l]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                   <button type="button" onClick={closeDialog} style={btnCancel}>취소</button>
                   <button type="button" onClick={() => void submitDialog()} disabled={!dialogName.trim()} style={btnAccent}>
@@ -339,6 +362,21 @@ const btnDanger: CSSProperties = {
   padding: "0.55rem 1rem", borderRadius: "var(--radius-sm)", border: "none",
   background: "#dc2626", color: "#fff", fontWeight: 600,
   cursor: "pointer", fontSize: 13,
+};
+
+const langBadge: CSSProperties = {
+  fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 6,
+  background: "var(--bg-elevated)", color: "var(--accent-ink)", flexShrink: 0,
+};
+
+const langChoice: CSSProperties = {
+  flex: 1, padding: "0.5rem 0", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
+  background: "var(--bg-elevated)", color: "var(--text-secondary)",
+  fontWeight: 600, cursor: "pointer", fontSize: 13,
+};
+
+const langChoiceOn: CSSProperties = {
+  background: "var(--accent)", borderColor: "var(--accent)", color: "var(--on-accent)",
 };
 
 const btnCancel: CSSProperties = {

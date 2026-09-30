@@ -11,6 +11,11 @@ const VocabularyDeckSchema = new Schema(
     phone: { type: String, default: "", index: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
+    /*
+      학습 언어 → lib/studyLanguage.ts. 이 필드가 생기기 전 단어장에는 값이 없다 —
+      없으면 영어로 읽는다. 그래서 조회는 `"hanja"` 가 아닌 것을 영어로 묶는다.
+    */
+    language: { type: String, enum: ["en", "hanja"], default: "en" },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     createdAt: { type: Date, default: Date.now },
     deletedAt: { type: Date, default: null, index: true },

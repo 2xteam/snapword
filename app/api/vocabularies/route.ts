@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { requireViewer, badRequest, notFound, serverError } from "@/lib/auth";
 import { Folder } from "@/models/Folder";
 import { VocabularyDeck } from "@/models/VocabularyDeck";
+import { normalizeStudyLanguage } from "@/lib/studyLanguage";
 
 export const runtime = "nodejs";
 
@@ -20,12 +21,19 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const folderId = url.searchParams.get("folderId") ?? "";
+    // 홈 화면이 학습 언어별로 나눠 부른다. 값이 없으면 거르지 않는다
+    const languageParam = url.searchParams.get("language");
+    const languageFilter = languageParam
+      ? normalizeStudyLanguage(languageParam) === "hanja"
+        ? { language: "hanja" }
+        : { language: { $ne: "hanja" } } // 필드가 없는 옛 단어장도 영어다
+      : {};
 
     await connectDB();
 
     // folderId 가 없으면 내 단어장 전부
     if (!folderId) {
-      const items = await VocabularyDeck.find({ createdBy: viewer.uid, deletedAt: null })
+      const items = await VocabularyDeck.find({ createdBy: viewer.uid, deletedAt: null, ...languageFilter })
         .sort({ createdAt: -1 })
         .limit(500)
         .lean()
@@ -56,7 +64,7 @@ export async function POST(req: Request) {
     if ("error" in auth) return auth.error;
     const { viewer } = auth;
 
-    let body: { folderId?: string; name?: string; description?: string };
+    let body: { folderId?: string; name?: string; description?: string; language?: string };
     try {
       body = await req.json();
     } catch {
@@ -66,6 +74,7 @@ export async function POST(req: Request) {
     const folderId = typeof body.folderId === "string" ? body.folderId.trim() : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description = typeof body.description === "string" ? body.description.trim() : "";
+    const language = normalizeStudyLanguage(body.language);
 
     if (!mongoose.isValidObjectId(folderId) || !name) {
       return badRequest("folderId, name이 필요합니다.");
@@ -79,6 +88,7 @@ export async function POST(req: Request) {
       folderId: new mongoose.Types.ObjectId(folderId),
       name,
       description,
+      language,
       createdBy: new mongoose.Types.ObjectId(viewer.uid),
     });
 

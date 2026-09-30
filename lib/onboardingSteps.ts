@@ -1,7 +1,11 @@
+import type { StudyLanguage } from "@/lib/studyLanguage";
+
 export type GuideStep = {
   selector: string;
   title: string;
   description: string;
+  /** 이 학습 언어일 때만 보인다. 없으면 언제나 */
+  languages?: StudyLanguage[];
 };
 
 export type PageGuide = {
@@ -16,9 +20,15 @@ const PAGE_GUIDES: PageGuide[] = [
     match: (p) => p === "/home",
     steps: [
       {
+        selector: "[data-guide='language-tabs']",
+        title: "학습 언어",
+        description: "영어와 한자 중 공부할 것을 골라요. 최근 단어장과 홈 화면 내용이 바뀌어요.",
+      },
+      {
         selector: "[data-guide='wotd-section']",
         title: "오늘의 Word",
         description: "매일 새로운 영단어를 확인할 수 있어요. 카드를 눌러 자세한 내용을 확인해 보세요!",
+        languages: ["en"],
       },
       {
         selector: "[data-guide='review-section']",
@@ -39,6 +49,7 @@ const PAGE_GUIDES: PageGuide[] = [
         selector: "[data-guide='eg-section']",
         title: "더 공부해 볼까?",
         description: "영어 문법 글을 읽고, AI에게 번역을 요청해 볼 수도 있어요.",
+        languages: ["en"],
       },
       {
         selector: "[data-guide='hamburger-btn']",
@@ -128,7 +139,7 @@ const PAGE_GUIDES: PageGuide[] = [
       {
         selector: ".study-carousel",
         title: "학습 카드",
-        description: "단어를 보고 \"뜻·예문 보기\"를 눌러 의미를 확인하세요. Naver 사전으로 발음을 확인하거나 AI에게 질문해 보세요!",
+        description: "단어를 보고 \"뜻·예문 보기\"를 눌러 의미를 확인하세요. Naver 사전에서 찾아보거나 AI에게 질문해 보세요!",
       },
     ],
   },

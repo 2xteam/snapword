@@ -143,6 +143,8 @@ export default function VocabWordsEditPage() {
       const fd = new FormData();
       fd.set("file", shrunk);
       if (session.id) fd.set("userId", session.id);
+      // 서버가 이 단어장의 학습 언어(영어·한자)를 읽어 지침을 고른다
+      fd.set("vocabId", vocabId);
       const res = await fetch("/api/openai-vision", { method: "POST", body: fd });
       const json = (await res.json()) as {
         ok: boolean;

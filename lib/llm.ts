@@ -6,6 +6,7 @@ import {
   parseVocabularyWordsFromLlmRoot,
   type VocabularyPayload,
 } from "@/lib/vocabularyTypes";
+import { DEFAULT_STUDY_LANGUAGE, type StudyLanguage } from "@/lib/studyLanguage";
 
 const SYSTEM_PROMPT = `당신은 단어장·어휘 자료를 JSON으로 변환합니다. 항상 루트 객체 하나만 출력합니다.
 
@@ -24,13 +25,36 @@ const SYSTEM_PROMPT = `당신은 단어장·어휘 자료를 JSON으로 변환�
 - 동의어·반의어가 이탤릭/작은 글씨로 따로 있으면 synonyms·antonyms에 넣고, meaning과 중복되면 정리해도 됩니다.
 - 형광펜·밑줄·손글씨 등은 가능하면 반영하되, 인쇄·촬영 잡기호로 보이는 노이즈는 무시합니다.`;
 
-const VISION_USER_INSTRUCTION =
-  "첨부 이미지를 읽으세요. 영어 교재의 'Words To Know'처럼 번호 박스가 여러 개 있으면 각 박스를 하나의 단어 항목으로 보고, 시스템 지침대로 \"words\" 배열에 모두 담으세요. 이미지에 단어가 하나뿐이면 words 길이는 1입니다.";
+/*
+  한자 단어장. 출력 키는 영어와 같다 — 저장·학습·시험·인쇄를 그대로 쓰기 위해서다.
+  훈·음은 따로 칸을 두지 않고 meaning 맨 앞에 넣는다.
+*/
+const HANJA_RULES = `이 자료는 **한자(漢字)** 학습 자료입니다. 위 규칙보다 아래 규칙을 우선합니다.
+- word: 한자 표제어만 넣습니다. 낱글자(學)든 한자어(學校)든 한자로 적고, 한글 독음·번호·급수 표기는 넣지 않습니다.
+- meaning: 맨 앞에 훈·음을 적고, " — " 뒤에 뜻을 한국어로 적습니다.
+  낱글자 예: "배울 학 — 배우다, 공부하다". 한자어 예: "학교 — 학생을 가르치는 기관".
+  자료에 부수·획수·급수가 있으면 뜻 뒤에 괄호로 덧붙입니다. 예: "(부수 子, 16획, 8급)".
+- example: 자료에 나온 한자어 예시나 예문을 한자(독음) 형태로 적습니다. 예: "學生(학생), 學習(학습)". 없으면 "".
+- synonyms, antonyms: 자료에 유의자·반의자(또는 유의어·반의어)가 있으면 한자로 넣습니다. 없으면 []. 지어내지 않습니다.
+- 한글·영어로만 된 항목은 한자 단어가 아니므로 넣지 않습니다.`;
 
-function buildSystemPrompt(requestExtra?: string): string {
+const VISION_USER_INSTRUCTION: Record<StudyLanguage, string> = {
+  en: "첨부 이미지를 읽으세요. 영어 교재의 'Words To Know'처럼 번호 박스가 여러 개 있으면 각 박스를 하나의 단어 항목으로 보고, 시스템 지침대로 \"words\" 배열에 모두 담으세요. 이미지에 단어가 하나뿐이면 words 길이는 1입니다.",
+  hanja:
+    "첨부 이미지를 읽으세요. 한자 교재·급수 문제집처럼 한자 칸이 여러 개 있으면 각 한자(또는 한자어)를 하나의 단어 항목으로 보고, 시스템 지침대로 \"words\" 배열에 모두 담으세요. 이미지에 한자가 하나뿐이면 words 길이는 1입니다.",
+};
+
+function buildSystemPrompt(
+  requestExtra?: string,
+  language: StudyLanguage = DEFAULT_STUDY_LANGUAGE,
+): string {
+  const base =
+    language === "hanja"
+      ? `${SYSTEM_PROMPT}\n\n--- 한자 단어장 ---\n${HANJA_RULES}`
+      : SYSTEM_PROMPT;
   const merged = mergeExtraInstructionsForModel(requestExtra);
-  if (!merged) return SYSTEM_PROMPT;
-  return `${SYSTEM_PROMPT}\n\n--- 추가 지침 ---\n${merged}`;
+  if (!merged) return base;
+  return `${base}\n\n--- 추가 지침 ---\n${merged}`;
 }
 
 function extractJsonObjectString(raw: string): string | null {
@@ -75,6 +99,8 @@ export function parseVocabularyWordsListFromLlmContent(
 export type VocabularyLlmOptions = {
   /** 요청별 추가 지침(API `instructions` 등). 환경 변수 지침과 합쳐집니다. */
   extraInstructions?: string;
+  /** 단어장의 학습 언어. 없으면 영어 → lib/studyLanguage.ts */
+  language?: StudyLanguage;
 };
 
 /** 붙여넣은 등의 평문 텍스트를 OpenAI로만 구조화합니다. */
@@ -99,7 +125,7 @@ export async function vocabularyFromPlainText(
       temperature,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: buildSystemPrompt(options?.extraInstructions) },
+        { role: "system", content: buildSystemPrompt(options?.extraInstructions, options?.language) },
         {
           role: "user",
           content: `다음은 사용자가 제공한 텍스트입니다. 보이는 모든 단어 항목을 "words" 배열에 담아 JSON만 반환하세요.\n\n---\n${text}\n---`,
@@ -213,11 +239,11 @@ export async function vocabularyFromImageBuffer(
       temperature,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: buildSystemPrompt(options?.extraInstructions) },
+        { role: "system", content: buildSystemPrompt(options?.extraInstructions, options?.language) },
         {
           role: "user",
           content: [
-            { type: "text", text: VISION_USER_INSTRUCTION },
+            { type: "text", text: VISION_USER_INSTRUCTION[options?.language ?? DEFAULT_STUDY_LANGUAGE] },
             {
               type: "image_url",
               image_url: { url: dataUrl, detail },
