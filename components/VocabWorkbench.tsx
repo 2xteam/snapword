@@ -2,15 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { goConsentIfNeeded } from "@/lib/consentGate";
-import { signupUrl } from "@/lib/portal";
+import { loginUrl, signupUrl } from "@/lib/portal";
 import type { VocabularyPayload } from "@/lib/vocabularyTypes";
-import { clearSession, loadSession, saveSession, type SessionUser } from "@/lib/session";
+import { clearSession, loadSession, type SessionUser } from "@/lib/session";
 import { checkUploadSize, shrinkImageForUpload } from "@/lib/clientImageResize";
 
 export function VocabWorkbench() {
   const [session, setSession] = useState<SessionUser | null>(null);
-  const [loginPhone, setLoginPhone] = useState("");
-  const [loginPin, setLoginPin] = useState("");
   const [vocabId, setVocabId] = useState("");
 
   const [file, setFile] = useState<File | null>(null);
@@ -38,35 +36,6 @@ export function VocabWorkbench() {
     setMessage(null);
   }, []);
 
-
-  const login = useCallback(async () => {
-    setBusy("auth");
-    setMessage(null);
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: loginPhone, pin: loginPin }),
-      });
-      const json = (await res.json()) as {
-        ok: boolean;
-        user?: SessionUser;
-        token?: string;
-        error?: string;
-      };
-      if (!res.ok || !json.ok || !json.user) {
-        setMessage(json.error ?? "로그인에 실패했습니다.");
-        return;
-      }
-      saveSession(json.user, json.token);
-      setSession(json.user);
-      setMessage("로그인되었습니다.");
-    } catch {
-      setMessage("로그인 요청에 실패했습니다.");
-    } finally {
-      setBusy(null);
-    }
-  }, [loginPhone, loginPin]);
 
   const logout = useCallback(() => {
     clearSession();
@@ -212,22 +181,13 @@ export function VocabWorkbench() {
               에서만 할 수 있어요. 약관·개인정보 동의를 그곳에서 받습니다.
             </p>
             <div style={{ fontWeight: 600, fontSize: 14, marginTop: "0.25rem" }}>로그인</div>
-            <div style={{ display: "grid", gap: "0.35rem" }}>
-              <input
-                placeholder="전화번호"
-                value={loginPhone}
-                onChange={(e) => setLoginPhone(e.target.value)}
-              />
-              <input
-                placeholder="PIN"
-                type="password"
-                value={loginPin}
-                onChange={(e) => setLoginPin(e.target.value)}
-              />
-              <button type="button" onClick={login} disabled={busy !== null}>
-                로그인
-              </button>
-            </div>
+            {/* 로그인도 포털에서만 한다 — 로컬이면 localhost:3000 포털 → lib/portal.ts */}
+            <p style={{ margin: 0, fontSize: 13, color: "#4b5563" }}>
+              <a href={loginUrl("/dev")} style={{ textDecoration: "underline" }}>
+                myjane 포털에서 로그인
+              </a>
+              하면 이 화면으로 돌아와요.
+            </p>
           </div>
         )}
       </section>
